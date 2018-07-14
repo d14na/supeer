@@ -1,0 +1,9 @@
+{
+  "name": "supeer",
+  "version": "18.7.14",
+  "description": "Super P2P Node",
+  "main": "index.js",
+  "repository": "git@github.com:d14na/supeer.git",
+  "author": "D14na <support@d14na.org>",
+  "license": "MIT"
+}
