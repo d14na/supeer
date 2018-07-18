@@ -1,12 +1,20 @@
-const connect = require('connect')
-const http = require('http')
-
-const app = connect()
+const express = require('express')
+const app = express()
 
 const DEFAULT_PORT = 8080
 
-app.use(function (req, res) {
-    res.end('Hi! My name is SUPeer. Would you like to play a game?')
+app.get('/', (req, res) => {
+    res.type('html')
+
+    res.send(`
+        <h2>Hi! My name is SUPeer.</h2>
+        <h3>Would you like to play a game?</h3>
+    `)
 })
 
-http.createServer(app).listen(DEFAULT_PORT)
+app.listen(DEFAULT_PORT, () => {
+    console.log(`
+    SUPeer is listening on port %d
+    ________________________________
+    `, DEFAULT_PORT)
+})

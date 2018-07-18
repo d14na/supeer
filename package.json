@@ -7,12 +7,13 @@
   "author": "D14na <support@d14na.org>",
   "license": "MIT",
   "dependencies": {
-    "connect": "^3.6.6"
+    "express": "^4.16.3"
   },
   "devDependencies": {
     "mocha": "^5.2.0"
   },
   "scripts": {
+    "start": "node index.js",
     "test": "mocha"
   }
 }
