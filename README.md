@@ -2,9 +2,19 @@
 
 [![Build Status](https://travis-ci.org/d14na/supeer.svg?branch=master)](https://travis-ci.org/d14na/supeer)
 
-The primary purpose of this package is to facilitate seeding from peers *(especially on mobile devices)* located behind a corporate NAT or firewall.
+> NOTE: The primary purpose of this package is to facilitate seeding from peers *(especially on mobile devices)* located behind a corporate NAT or firewall.
+
+## TCP Communications
+
+    Default Port: 15441
 
 ## NAT Seeding (example)
 
 1. (Mobile) client establishes a reverse proxy connection to a SUPeer.
 2. Client listens for requests via the reverse proxy and seeding occurs as normal.
+
+## 0̸PEN - Zer0̸net Premium & Enterprise Networks
+
+> Pronounced  **OPEN** /'əʊpən/
+
+A premium network offering reliable, **hi-speed bandwidth** to average users; and a marketplace offering distributed, ***streaming*** content broadcasting for businesses.
