@@ -1,3 +1,10 @@
 # Super P2P Node
 
-#Zitetag: supeer
+[![Build Status](https://travis-ci.org/d14na/supeer.svg?branch=master)](https://travis-ci.org/d14na/supeer)
+
+The primary purpose of this package is to facilitate seeding from peers *(especially on mobile devices)* located behind a corporate NAT or Firewall.
+
+## NAT Seeding
+
+1. (Mobile) client establishes a reverse proxy connection to a SUPeer.
+2. Client listens for requests via the reverse proxy and seeding occurs as normal.
