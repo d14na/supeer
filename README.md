@@ -24,4 +24,4 @@ Proxy gateways will be provided for free to the following decentralized networks
 
 > Pronounced  **OPEN** /'əʊpən/
 
-A premium network offering reliable, **hi-speed bandwidth** to average users; and a marketplace offering distributed, ***streaming*** content broadcasting for businesses.
+A premium network, offering ***reliable, hi-speed bandwidth*** to average users; and a marketplace, offering ***distributed, streaming*** content broadcasting for businesses.
