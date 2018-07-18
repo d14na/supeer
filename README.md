@@ -8,6 +8,13 @@
 
     Default Port: 15441
 
+## Gateways
+
+Proxy gateways will be provided for free to the following decentralized networks:
+
+1. [TOR - The Onion Router](https://en.wikipedia.org/wiki/Tor_(anonymity_network)
+2. [I2P - Invisible Internet Project](https://en.wikipedia.org/wiki/I2P)
+
 ## NAT Seeding (example)
 
 1. (Mobile) client establishes a reverse proxy connection to a SUPeer.
