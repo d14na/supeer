@@ -22,7 +22,7 @@ A premium network, offering ***reliable, hi-speed bandwidth*** to average users;
 1. [IPFS - InterPlanetary File System](https://en.wikipedia.org/wiki/InterPlanetary_File_System)
 2. [Ethereum Swarm](https://github.com/ethersphere/swarm)
 3. [STORJ](https://en.wikipedia.org/wiki/STORJ)
-4. [TOR - The Onion Router](https://en.wikipedia.org/wiki/Tor_(anonymity_network)
+4. [TOR - The Onion Router](https://en.wikipedia.org/wiki/Tor_(anonymity_network))
 5. [I2P - Invisible Internet Project](https://en.wikipedia.org/wiki/I2P)
 
 ## NAT Seeding via (Web)Sockets
