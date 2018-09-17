@@ -1,4 +1,3 @@
-// http://162.208.10.179:10443/magnet/?xt=urn:btih:01c227c8c9aac311f9365b163ea94708c27a7db4&dn=The+Subtle+Art+of+Not+Giving+a+Fck+%282016%29+%28Epub%29+Gooner&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Fzer0day.ch%3A1337&tr=udp%3A%2F%2Fopen.demonii.com%3A1337&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Fexodus.desync.com%3A6969
 const Bitfield = require('bitfield')
 const DHT = require('bittorrent-dht')
 const Piece = require('torrent-piece')
@@ -7,23 +6,26 @@ const Protocol = require('bittorrent-protocol')
 const bencode = require('bencode')
 const crypto = require('crypto')
 const net = require('net')
-const ut_metadata = require('ut_metadata')
+const ut_metadata = require('ut_metadata') // eslint-disable-line camelcase
 
 /* Initialize constants. */
-const BT_0NET_PORT = 6889
+const BT_0NET_PORT = 6890
 const PIECE_HASH_LENGTH = 20
 
 /* Initialize session holders. */
 let haveMetadata = false
 let haveDataSource = false
 
+/* Set piece index. */
+let pieceIndex = 0
+
 /* Initialize piece holders. */
-Piece.BLOCK_LENGTH // 16384
-console.log('PIECE_BLOCK_LENGTH', Piece.BLOCK_LENGTH);
+// console.log('PIECE_BLOCK_LENGTH', Piece.BLOCK_LENGTH)
 let piece = null
 let pieceLength = 0
 let subPieceIndex = 0
 let subPiecesInBlock = 0
+let pieceHashes = []
 
 /**
  * Get Peer Id
@@ -47,16 +49,16 @@ const _getPeerId = function (_countryCode) {
     return `${prefix}-${_countryCode}-${rndString}`
 }
 
+const _calcHash = function (_data) {
+    /* Compute the SHA-1 hash of the completed piece. */
+    return crypto.createHash('sha1').update(_data).digest('hex')
+}
+
 /* Initialize a new peer id. */
 const peerId = Buffer.from(_getPeerId('US'))
 
 const infoHash = Buffer.from('01c227c8c9aac311f9365b163ea94708c27a7db4', 'hex')
 // console.log('Peer Id/InfoHash', peerId, infoHash)
-
-const _calcHash = function (_wholePiece) {
-    /* Compute the SHA-1 hash of the completed piece. */
-    return crypto.createHash('sha1').update(_wholePiece).digest('hex')
-}
 
 const _handleMetadata = function (metadata) {
     /* Immediately set the flag to stop requesting metadata. */
@@ -86,6 +88,7 @@ const _handleMetadata = function (metadata) {
     /* Retrieve the torrent's files. */
     const files = torrent['files']
 
+    /* Initialize file counter. */
     let fileCounter = 0
 
     /* Process the individual files. */
@@ -131,6 +134,8 @@ console.log(`HOW MUCH (PIECE) ARE WE MISSING?? ${piece.missing}\n`)
         const hash = Buffer.from(buf).toString('hex')
 
         console.info(`        Hash Piece #${i}: ${hash}`)
+        /* Set piece hash. */
+        pieceHashes[i] = hash
     }
 
     // empty spacing
@@ -154,14 +159,14 @@ const _requestSubPiece = function (_wire, _pieceIndex, _subPieceIndex, _offset, 
     console.log(`Now requesting piece #${_pieceIndex} at ${_offset} for ${_length} bytes\n`)
     _wire.request(_pieceIndex, _offset, _length, (err, _block) => {
         if (err) {
-            return console.log('HAVE REQUEST ERROR', err.message)
+            return console.error('REQUEST ERROR', err.message)
         }
 
         /* Retrieve the data from the block. */
         const data = Buffer.from(_block)
 
-        console.log(`\n\n\n***HAVE REQUESTED SUB-PIECE #${subPieceIndex}`, data.length)
-        console.log(data.toString('hex'))
+        console.log(`Received sub-piece #${subPieceIndex} having ${data.length} bytes`)
+        // console.log(data.toString('hex'))
 
         piece.reserve()
         piece.set(_subPieceIndex, data)
@@ -186,6 +191,9 @@ const _requestSubPiece = function (_wire, _pieceIndex, _subPieceIndex, _offset, 
 
             const hash = _calcHash(pieceBuffer)
             console.log('\n\n***SHA-1 HASH', hash)
+
+            const matched = Buffer.from(hash, 'hex') === Buffer.from(pieceHashes[_pieceIndex], 'hex')
+            console.log(`Piece #${_pieceIndex} verification [ ${matched} ]`);
         }
     })
 
@@ -238,20 +246,21 @@ net.createServer(socket => {
         // console.log('BITFILED BUFFER', field.buffer)
     })
 
-    wire.on('have', pieceIndex => {
+    wire.on('have', _pieceIndex => {
         // console.log('HAVE', pieceIndex, wire.peerInterested, wire.amInterested)
 
-        if (wire.peerPieces.get(0)) {
-            // console.log('HAVE THE FIRST PIECE? ', wire.peerPieces.get(0));
-            // wire.have(0)
+        if (wire.peerPieces.get(pieceIndex)) {
+            /* Announce our interest in this piece. */
+            // console.log(`Announce our interest in piece #${pieceIndex}`)
+            // wire.have(pieceIndex)
         }
     })
 
-    wire.on('request', (pieceIndex, offset, length, callback) => {
-        console.log('OH NO! PEERS HAS REQUESTED PIECE', pieceIndex)
+    wire.on('request', (_pieceIndex, _offset, _length, _callback) => {
+        console.log('OH NO! PEERS HAS REQUESTED PIECE', _pieceIndex)
         // ... read block ...
         // callback(null, block) // respond back to the peer
-        callback(null)
+        _callback(null)
     })
 
     wire.on('interested', () => {
@@ -284,9 +293,6 @@ net.createServer(socket => {
 
         console.log('\n\n*** PEER is no longer choking us: ' + wire.peerChoking)
 
-        /* Set piece index. */
-        const pieceIndex = 0
-
         if (wire.peerPieces.get(pieceIndex)) {
             console.log('AND THEY HAVE THE PIECE THAT WE NEED!')
         } else {
@@ -310,14 +316,17 @@ net.createServer(socket => {
 const dht = new DHT()
 
 dht.listen(BT_0NET_PORT, function () {
-    console.log(`DHT listening on port ${BT_0NET_PORT}`)
+    console.info(`DHT listening on port ${BT_0NET_PORT}`)
 })
 
-dht.announce(infoHash, BT_0NET_PORT, function (err) {
-    if (err) {
-        console.log('DHT announcement errors', err)
-    }
-})
+/**
+ * Announce that we have peers seeding this info hash.
+ */
+// dht.announce(infoHash, BT_0NET_PORT, function (err) {
+//     if (err) {
+//         console.error('DHT announcement error', err)
+//     }
+// })
 
 dht.on('peer', function (peer, infoHash, from) {
     // console.log('found potential peer ' + peer.host + ':' + peer.port + ' through ' + from.address + ':' + from.port)
