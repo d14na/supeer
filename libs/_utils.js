@@ -97,11 +97,61 @@ const addRequest = function (_request) {
 }
 
 /**
+ * Array Match
+ */
+const arrayMatch = function (_arr1, _arr2) {
+    if (_arr1.length === _arr2.length && _arr1.every(function (u, i) {
+        return u === _arr2[i]
+    })) {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
  * Calculate Info Hash
  */
 const calcInfoHash = function (_data) {
     /* Compute the SHA-1 hash of the data provided. */
     return crypto.createHash('sha1').update(_data).digest('hex')
+}
+
+/**
+ * Calculate File Hash
+ *
+ * NOTE Only the first half of the SHA-512 is used in verification.
+ */
+const calcFileHash = function (_data) {
+    /* Calculate the sha512 hash. */
+    const hash = crypto.createHash('sha512').update(_data).digest()
+
+    /* Truncate to 256-bit and return hex. */
+    return hash.toString('hex').slice(0, 64)
+}
+
+/**
+ * Concatenate the overload the payload.
+ */
+const concatOverload = function (_overload, _payload) {
+    /* Decode the overload. */
+    const dOverload = decode(_overload)
+console.log('D OVERLOAD 1', dOverload)
+console.log('D OVERLOAD 2', dOverload.body.length)
+
+    /* Decode the payload. */
+    const dPayload = decode(_payload)
+console.log('D PAYLOAD 1', dPayload)
+console.log('D PAYLOAD 2', dPayload.body.length)
+
+    dOverload.body = Buffer.concat([dOverload.body, dPayload.body])
+    dOverload.location += dPayload.body.length
+
+    /* Encode a new load. */
+    const newload = encode(dOverload)
+    // console.log('RE-ENCODED NEWLOAD', newload)
+
+    return newload
 }
 
 /**
@@ -130,6 +180,20 @@ const decode = function (_msg) {
     const decode = msgpack.decode
 
     return decode(_msg)
+}
+
+const isJson = function (_str, stringified = false) {
+    if (!stringified) {
+        _str = JSON.stringify(_str)
+    }
+
+    try {
+        JSON.parse(_str)
+    } catch (e) {
+        return false
+    }
+
+    return true
 }
 
 const parseIp = function (_buf) {
@@ -171,7 +235,10 @@ const ping = function () {
 module.exports = {
     addPeer,
     addRequest,
+    arrayMatch,
     calcInfoHash,
+    calcFileHash,
+    concatOverload,
     decode,
     displaySummary,
     encode,
@@ -180,6 +247,7 @@ module.exports = {
     getRequests,
     getPeerId,
     getSummaryDisplayed,
+    isJson,
     parseIp,
     parsePort,
     ping

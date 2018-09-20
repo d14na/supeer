@@ -1,19 +1,23 @@
 {
-  "name": "supeer",
-  "version": "18.7.17",
-  "description": "Super P2P Node",
+  "name": "zeropen-buttox",
+  "version": "18.9.9",
+  "description": "Zeronet Private Enterprise Network Backend",
   "main": "index.js",
-  "repository": "git@github.com:d14na/supeer.git",
-  "author": "D14na <support@d14na.org>",
+  "repository": "https://github.com/d14na/zeropen-buttox.git",
+  "author": "D14na",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.16.3"
-  },
-  "devDependencies": {
-    "mocha": "^5.2.0"
-  },
-  "scripts": {
-    "start": "node index.js",
-    "test": "mocha"
+    "bencode": "^2.0.0",
+    "bitfield": "^2.0.0",
+    "bittorrent-protocol": "^3.0.1",
+    "express": "^4.16.3",
+    "moment": "^2.22.2",
+    "sockjs": "^0.3.19",
+    "torrent-discovery": "^9.1.1",
+    "torrent-piece": "^2.0.0",
+    "ut_metadata": "^3.3.0",
+    "web3": "^1.0.0-beta.36",
+    "zeronet-msgpack": "^3.6.0",
+    "zeronet-tracker": "^0.1.1-zn"
   }
 }
