@@ -1,9 +1,10 @@
 const _utils = require('./_utils')
 
-module.exports = function (_hostIp, _hostPort, _peerId) {
+module.exports = function (_hostIp, _hostPort, _peerId, _reqId) {
     const cmd = 'handshake'
-    const request = { cmd }
-    const req_id = _utils.addRequest(request) // eslint-disable-line camelcase
+    // const request = { cmd }
+    // const req_id = _utils.addRequest(request) // eslint-disable-line camelcase
+    const req_id = _reqId // eslint-disable-line camelcase
 // console.log('HANDSHAKE REQID', req_id)
 
     const crypt = null

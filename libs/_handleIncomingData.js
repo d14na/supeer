@@ -9,25 +9,10 @@ let overload = null
 /* Initialize handshake flag. */
 let handshakeComplete = false
 
-module.exports = function (_address, _data) {
+module.exports = function (_parent, _data) {
     /* Initailize promise holders. */
     let resolve = null
     let reject = null
-
-    const _parseIp = function (_buf) {
-        const ip = _buf.readUInt8(0) +
-            '.' + _buf.readUInt8(1) +
-            '.' + _buf.readUInt8(2) +
-            '.' + _buf.readUInt8(3)
-
-        return ip
-    }
-
-    const _parsePort = function (_buf) {
-        const port = (_buf.readUInt8(5) * 256) + _buf.readUInt8(4)
-
-        return port
-    }
 
     /* Add data to current payload. */
     if (payload) {
@@ -175,7 +160,7 @@ console.log('PAYLOAD', payload.length)
             // console.log('Decoded reqId', reqId)
 
             /* Retrieve the request. */
-            request = _utils.getRequestId(reqId)
+            request = _parent.getRequestId(reqId)
             // console.log('Decoded request', request)
         }
 
@@ -242,8 +227,8 @@ console.log('PAYLOAD', payload.length)
                     console.log('#%d IP:Port', i, ipBuffer)
 
                     const peer = {
-                        ip: _parseIp(ipBuffer),
-                        port: _parsePort(ipBuffer)
+                        ip: _utils.parseIp(ipBuffer),
+                        port: _utils.parsePort(ipBuffer)
                     }
                     console.log('PEX Peer (buffer)', peer)
                 }

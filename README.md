@@ -4,7 +4,7 @@
 
 > NOTE: The primary purpose and goal of this package is to facilitate **hi-availability seeding** over p2p networks from **"common" peers** *(especially on mobile devices)* serviced behind restricted corporate **NATs and firewalls.**
 
-## 0̸PEN - Zero Private Enterprise Network
+## 0PEN - Zero Private Enterprise Network
 
 > Pronounced  **OPEN** /'əʊpən/
 
@@ -12,12 +12,12 @@ A premium network, offering ***reliable, hi-speed bandwidth*** to average users;
 
 ## Default Communications Ports
 
-          0̸PEN Network : 10443
+          0PEN Network : 10443
     BitTorrent Network : 6888
 
 ## Communication Gateways
 
-0̸PEN convenietnly provides gateways to some of the most popular decentralized storage & communication networks:
+0PEN convenietnly provides gateways to some of the most popular decentralized storage & communication networks:
 
 1. [IPFS - InterPlanetary File System](https://en.wikipedia.org/wiki/InterPlanetary_File_System)
 2. [Ethereum Swarm](https://github.com/ethersphere/swarm)
@@ -48,7 +48,7 @@ As these are ALL premium, hi-speed networks, latency would be kept to a minimum;
 
 ## 0PEN Decentralization
 
-In order to guarantee the **protection of 0̸PEN** and the spread of decentralization; we will be looking to offer a **"monetarily" incentivized solution** for hosts as soon as possible.
+In order to guarantee the **protection of 0PEN** and the spread of decentralization; we will be looking to offer a **"monetarily" incentivized solution** for hosts as soon as possible.
 
 Primarily we will be targeting ISPs, Academic Institutions and Large-scale Enterprises *(basically anyone with the infrastructure to support a shit-ton of bandwidth and throughput at high availability).*
 

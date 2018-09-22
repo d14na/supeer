@@ -10,6 +10,10 @@ const Web3 = require('web3')
 const web3 = new Web3()
 // console.log('WEB3', web3)
 
+const _utils = require('./libs/_utils')
+const Discovery = require('./libs/discovery')
+const Peer0 = require('./libs/peer0')
+
 /**
  * Handle socket errors.
  */
@@ -122,10 +126,10 @@ const _getAccountBySig = function (_signature) {
     }
 }
 
-const server = http.createServer()
-ws.installHandlers(server)
-// ws.installHandlers(server, { prefix:'/ws' })
-server.listen(SOCKET_PORT, '127.0.0.1')
+// const server = http.createServer()
+// ws.installHandlers(server)
+// // ws.installHandlers(server, { prefix:'/ws' })
+// server.listen(SOCKET_PORT, '127.0.0.1')
 
 
 
@@ -156,3 +160,195 @@ server.listen(SOCKET_PORT, '127.0.0.1')
 //
 // app.listen(SOCKET_PORT,
 //     () => console.log(`Example app listening on port ${SOCKET_PORT}!`))
+
+
+
+
+
+
+const doDiscovery = async function (_infoHash) {
+    /* Create new Discovery. */
+    const discovery = new Discovery(_infoHash)
+
+    /* Start discovery of peers. */
+    const peers = await discovery.startTracker()
+    console.log('FOUND THESE PEERS', peers)
+}
+
+const requestFile = async function (_address, _site, _innerPath) {
+    /* Create new Peer. */
+    const peer0 = new Peer0(_address, _site)
+
+    /* Open a new connection. */
+    const conn = await peer0.openConnection()
+
+    if (conn && conn.action === 'HANDSHAKE') {
+        /* Start discovery of peers. */
+        const fileData = await peer0.requestFile(_innerPath, 0)
+        console.log('RECEIVED THIS FILE DATA', fileData)
+    }
+}
+
+/* Initialize target zite. */
+const site = '1Gfey7wVXXg1rxk751TBTxLJwhddDNfcdp'
+// const site = '1HeLLo4uzjaLetFx6NH3PMwFP3qbRbTf3D'
+// const site = '1Name2NXVi1RDPDgf5617UoW7xA6YrhM9F'
+
+/* Initialize info hash. */
+const infoHash = Buffer.from(_utils.calcInfoHash(site), 'hex')
+
+/* Initialize inner path. */
+const innerPath = 'index.html'
+// const innerPath = 'archive.py'
+// const innerPath = 'content.json'
+// const innerPath = 'messages.json'
+
+// doDiscovery(infoHash)
+
+const address = '185.142.236.207:10443'
+requestFile(address, site, innerPath)
+
+
+
+
+
+
+
+// setTimeout(() => {
+// return
+//     if (!_utils.getSummaryDisplayed()) {
+//         _utils.displaySummary()
+//     }
+//
+//     /* Retrieve found peers. */
+//     const foundPeers = _utils.getFoundPeers()
+//
+//     /* Filter peers. */
+//     const filteredPeers = foundPeers.filter(peer => {
+//         /* Retrieve port number. */
+//         const portNum = parseInt(peer.split(':')[1])
+//
+//         /* Remove peers with port num [ 0 ]. */
+//         if (portNum === 0) {
+//             return false
+//         } else {
+//             return true
+//         }
+//     })
+//     // console.log('Filtered Peers', filteredPeers)
+//
+//     /* Check the peer connections. */
+//     _manageConnections(filteredPeers)
+// }, 5000)
+
+// scrape
+// client.scrape()
+
+
+// manageConnections(_peers) {
+//     /* Initialize connection count. */
+//     let connCount = 0
+//
+//     for (let address of _peers) {
+//         console.log(`Connecting with ${address}`)
+//
+//         const peerIp = address.split(':')[0]
+//         const peerPort = address.split(':')[1]
+//
+//         /* Skip peers with port number [ 0 ]. */
+//         if (peerPort === 0) {
+//             console.log(`Skipping ${address}`)
+//
+//             continue
+//         }
+//
+//         /* Open connection with peer (request handshake). */
+//         const peer = _openConnection(address)
+//         // console.log('PEER', peer)
+//
+//         /* Handle closed connection. */
+//         peer.on('close', function () {
+//             console.info(`Connection closed with ${address}`)
+//         })
+//
+//         /* Handle connection errors. */
+//         peer.on('error', function (_err) {
+//             console.error(`Error detected with ${address} [ ${_err.message} ]`, )
+//         })
+//
+//         /* Handle incoming data. */
+//         peer.on('data', async function (_data) {
+//             /* Initialize incoming data handler. */
+//             const handleIncomingData = require('./_handleIncomingData')
+//
+//             /* Retrieve response from data handler. */
+//             const data = await handleIncomingData(address, _data)
+//
+//             /* Validate data. */
+//             if (!data) {
+//                 throw new Error('Data failed to be returned from handler.')
+//             }
+//
+// if (_utils.isJson(data)) {
+// console.log(`Returned data is JSON OBJECT`, data)
+// } else if (_utils.isJson(data, true)) {
+// console.log(`Returned data is JSON STRING`, JSON.parse(data))
+// } else {
+// console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
+// }
+//
+//             /* Handle handshakes. */
+//             if (data.success && data.action == 'HANDSHAKE') {
+// return _requestFile(peer, 0)
+//
+//                 /* Limit max connections. */
+//                 if (connCount++ === _constants.ZEROPEN_MAX_CONN) {
+//                     console.info(`\nWe successfully handshaked with [ ${peers.length} ] peers.`)
+//
+//                     if (!fileRequested) {
+//                         /* Set file request flag. */
+//                         fileRequested = true
+//
+//                         /* Request the file from first peer. */
+//                         _requestFile(peer, 0)
+//                     }
+//                 } else {
+//                     /* Add peer to (successfully) connected list. */
+//                     peers.push(peer)
+//                 }
+//             }
+//
+//             /* Verify length of data body. */
+//             if (data.decoded && data.decoded.body) {
+//                 const body = data.decoded.body
+//                 console.log(`Data body length is [ ${body.length} ]`)
+//                 console.log(`Data body hash is [ ${_utils.calcFileHash(body)} ]`)
+//             }
+//
+//             /* Check for overload. */
+//             if (data.overload && data.location) {
+//                 // console.log('CONTINUE WITH DATA REQUEST', _utils.innerPath, data.location)
+//                 /* Continue with data request. */
+//                 _requestFile(peer, data.location)
+//             }
+//
+//             /* Parse and update the config files. */
+//             // if (data.request && data.request.innerPath === 'content.json') {
+//             //     const body = data.decoded.body
+//             //
+//             //     const files = JSON.parse(body).files
+//             //
+//             //     _utils._updateFiles(files)
+//             // }
+//
+//         })
+//
+//         /* Limit max connection requests. */
+//         // NOTE We should NOT request ALL peers at once, to limit resource use.
+//         if (connCount === _constants.ZEROPEN_MAX_CONN) {
+//             // console.log('\nAll connected peers', peers)
+//             break
+//         }
+//         break
+//     }
+// }

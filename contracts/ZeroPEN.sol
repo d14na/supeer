@@ -7,7 +7,7 @@ pragma solidity ^0.4.24;
  *
  * Zero Private Enterprise Network (0PEN)
  *
- * Empowers the Zer0̸net community with UNRESTRICTED access to
+ * Empowers the Zer0net community with UNRESTRICTED access to
  * the FASTEST speed imaginable over a globally DISTRIBUTED, UNCENSORED,
  * TAMPER-PROOF communications network.
  *
