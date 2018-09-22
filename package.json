@@ -1,9 +1,9 @@
 {
-  "name": "zeropen-buttox",
-  "version": "18.9.20",
-  "description": "Zeronet Private Enterprise Network Backend",
+  "name": "supeer",
+  "version": "18.9.9",
+  "description": "P2P Management Services",
   "main": "index.js",
-  "repository": "https://github.com/d14na/zeropen-buttox.git",
+  "repository": "https://github.com/d14na/supeer.git",
   "author": "D14na",
   "license": "MIT",
   "dependencies": {
