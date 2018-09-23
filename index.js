@@ -80,8 +80,15 @@ User Agent: ${userAgent}
  *
  * Verify our connection status before sending.
  */
-const _respond = function (_conn, _msg) {
-// FIXME How do we guranantee a valid connection??
+const _respond = function (_conn, _action, _msg) {
+// FIXME How do we guranantee a valid CLIENT connection??
+//       Check READYSTATE??
+
+    /* Add action to response. */
+    _msg = {
+        action: _action,
+        ..._msg
+    }
 
     /* Stringify the message package. */
     const msg = JSON.stringify(_msg)
@@ -109,13 +116,14 @@ const _handleData = async function (_conn, _data) {
         /* Validate data and action. */
         if (data && data.action) {
             /* Retrieve the action (convert to uppercase). */
-            action = data.action.toUpperCase()
+            action = data.action
             console.log(`User requested [ ${action} ]`)
         } else {
-            console.error('No action was received.')
+            return console.error('No action was received.')
         }
 
-        switch(action) {
+        /* Handle actions (case-insesitive). */
+        switch (action.toUpperCase()) {
             case 'AUTH':
                 /* Initialize authorization handler. */
                 const auth = require('./handlers/_auth')
@@ -124,7 +132,7 @@ const _handleData = async function (_conn, _data) {
                 pkg = await auth(_conn, data)
 
                 /* Send response. */
-                return _respond(_conn, pkg)
+                return _respond(_conn, action, pkg)
             case 'WHOAMI':
                 /* Initialize `Who Am I` handler. */
                 const whoAmI = require('./handlers/_whoAmI')
@@ -133,7 +141,16 @@ const _handleData = async function (_conn, _data) {
                 pkg = await whoAmI(_conn)
 
                 /* Send response. */
-                return _respond(_conn, pkg)
+                return _respond(_conn, action, pkg)
+            case 'SEARCH':
+                /* Initialize search handler. */
+                const search = require('./handlers/_search')
+
+                /* Handle search. */
+                pkg = await search(data)
+
+                /* Send response. */
+                return _respond(_conn, action, pkg)
             default:
                 console.log(`Nothing to do here with [ ${action} ]`)
         }
