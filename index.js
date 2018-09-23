@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 
-const SOCKET_PORT = 10443
-
 const http = require('http')
 const sockjs = require('sockjs')
-const Web3 = require('web3')
-
-/* Initialize new web3 object. */
-const web3 = new Web3()
+const PouchDB = require('pouchdb')
 
 /* Initialize local libraries. */
 const _utils = require('./libs/_utils')
 const Discovery = require('./libs/discovery')
 const Peer0 = require('./libs/peer0')
+
+/* Initialize new database cache. */
+const cache = new PouchDB('cache')
+
+/* Initialize global constants. */
+const SOCKET_PORT = 10443
 
 /**
  * Handle socket errors.
@@ -61,7 +62,10 @@ ws.on('connection', function (conn) {
     /* Retrieve the language. */
     const lang = headers['accept-language']
 
-    console.log(
+    /* Add source to conn (for authentication). */
+    conn.source = `${hostIp}:${hostPort}`
+
+    console.info(
 `
 Protocol: ${protocol}
 Source: ${hostIp}:${hostPort}
@@ -72,59 +76,72 @@ User Agent: ${userAgent}
 })
 
 /**
+ * Send Response
+ *
+ * Verify our connection status before sending.
+ */
+const _respond = function (_conn, _msg) {
+// FIXME How do we guranantee a valid connection??
+
+    /* Stringify the message package. */
+    const msg = JSON.stringify(_msg)
+
+    /* Send message. */
+    _conn.write(msg)
+}
+
+/**
  * Handle Incoming Data
  */
 const _handleData = async function (_conn, _data) {
 // console.log('RECEIVED DATA', _data)
 
+    /* Protect server process from BAD DATA. */
     try {
         /* Parse the incoming data. */
         const data = JSON.parse(_data)
-        console.log('PARSED DATA', data)
+        // console.log('PARSED DATA', data)
 
-        const action = data.action
-        console.log('ACTION', action)
+        /* Initialize data holders. */
+        let action = null
+        let pkg = null
+
+        /* Validate data and action. */
+        if (data && data.action) {
+            /* Retrieve the action (convert to uppercase). */
+            action = data.action.toUpperCase()
+            console.log(`User requested [ ${action} ]`)
+        } else {
+            console.error('No action was received.')
+        }
 
         switch(action) {
             case 'AUTH':
-                /* Retrieve the signature. */
-                const signature = data.sig
-                console.log('Perform authorization for', signature)
+                /* Initialize authorization handler. */
+                const auth = require('./handlers/_auth')
 
-                /* Retrieve account for this signature. */
-                const account = await _getAccountBySig(signature)
-                console.log('IS VALID SIG for', account)
+                /* Handle authorization. */
+                pkg = await auth(_conn, data)
 
-                _conn.write(`Hi ${account}!`)
-                break
+                /* Send response. */
+                return _respond(_conn, pkg)
+            case 'WHOAMI':
+                /* Initialize `Who Am I` handler. */
+                const whoAmI = require('./handlers/_whoAmI')
+
+                /* Handle `Who Am I` request. */
+                pkg = await whoAmI(_conn)
+
+                /* Send response. */
+                return _respond(_conn, pkg)
             default:
-                console.log('Nothing to do here')
+                console.log(`Nothing to do here with [ ${action} ]`)
         }
     } catch (e) {
         console.error(e)
     }
 }
 
-/**
- * Get Account By Signature
- *
- * Retrieves the account (address) from the supplied cryptographic
- * signature object.
- */
-const _getAccountBySig = function (_signature) {
-    try {
-        /* Recover the account (address) from the signature object. */
-        const account = web3.eth.accounts.recover(_signature)
-
-        /* Return the account (address). */
-        return account
-    } catch (e) {
-        console.error(e)
-
-        /* Return null. */
-        return null
-    }
-}
 
 const server = http.createServer()
 ws.installHandlers(server)
