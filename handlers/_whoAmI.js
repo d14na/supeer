@@ -1,4 +1,4 @@
-const _whoAmI = async function (_conn) {
+const _handler = async function (_conn) {
     /* Retrieve the connection source (identity). */
     const identity = _conn.source
     console.info(`User requested their identity [ ${identity} ]`)
@@ -12,4 +12,4 @@ const _whoAmI = async function (_conn) {
     return pkg
 }
 
-module.exports = _whoAmI
+module.exports = _handler

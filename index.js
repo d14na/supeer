@@ -6,14 +6,13 @@ const PouchDB = require('pouchdb')
 
 /* Initialize local libraries. */
 const _utils = require('./libs/_utils')
-const Discovery = require('./libs/discovery')
-const Peer0 = require('./libs/peer0')
 
 /* Initialize new database cache. */
 const cache = new PouchDB('cache')
 
 /* Initialize global constants. */
 const SOCKET_PORT = 10443
+const DEBUG = false
 
 /**
  * Handle socket errors.
@@ -45,7 +44,10 @@ ws.on('connection', function (conn) {
     conn.on('close', _handleClose)
 
     const headers = conn.headers
-    console.log(`\n${JSON.stringify(headers)}\n\n`)
+
+    if (DEBUG) {
+        console.log(`\n${JSON.stringify(headers)}\n\n`)
+    }
 
     /* Retrieve the communication protocol (ie websocket). */
     const protocol = conn.protocol
@@ -65,14 +67,14 @@ ws.on('connection', function (conn) {
     /* Add source to conn (for authentication). */
     conn.source = `${hostIp}:${hostPort}`
 
-    console.info(
-`
+    if (DEBUG) {
+        console.info(`
 Protocol: ${protocol}
 Source: ${hostIp}:${hostPort}
 Language: ${lang}
 User Agent: ${userAgent}
-`
-    );
+        `)
+    }
 })
 
 /**
@@ -124,35 +126,53 @@ const _handleData = async function (_conn, _data) {
 
         /* Handle actions (case-insesitive). */
         switch (action.toUpperCase()) {
-            case 'AUTH':
-                /* Initialize authorization handler. */
-                const auth = require('./handlers/_auth')
+        case 'AUTH':
+            /* Initialize handler. */
+            const auth = require('./handlers/_auth')
 
-                /* Handle authorization. */
-                pkg = await auth(_conn, data)
+            /* Handle request. */
+            pkg = await auth(_conn, data)
 
-                /* Send response. */
-                return _respond(_conn, action, pkg)
-            case 'WHOAMI':
-                /* Initialize `Who Am I` handler. */
-                const whoAmI = require('./handlers/_whoAmI')
+            /* Send response. */
+            return _respond(_conn, action, pkg)
+        case 'GETFILE':
+            /* Initialize handler. */
+            const getFile = require('./handlers/_getFile')
 
-                /* Handle `Who Am I` request. */
-                pkg = await whoAmI(_conn)
+            /* Handle request. */
+            pkg = await getFile(data)
 
-                /* Send response. */
-                return _respond(_conn, action, pkg)
-            case 'SEARCH':
-                /* Initialize search handler. */
-                const search = require('./handlers/_search')
+            /* Send response. */
+            return _respond(_conn, action, pkg)
+        case 'GETINFO':
+            /* Initialize handler. */
+            const getInfo = require('./handlers/_getInfo')
 
-                /* Handle search. */
-                pkg = await search(data)
+            /* Handle request. */
+            pkg = await getInfo(data)
 
-                /* Send response. */
-                return _respond(_conn, action, pkg)
-            default:
-                console.log(`Nothing to do here with [ ${action} ]`)
+            /* Send response. */
+            return _respond(_conn, action, pkg)
+        case 'SEARCH':
+            /* Initialize handler. */
+            const search = require('./handlers/_search')
+
+            /* Handle request. */
+            pkg = await search(data)
+
+            /* Send response. */
+            return _respond(_conn, action, pkg)
+        case 'WHOAMI':
+            /* Initialize handler. */
+            const whoAmI = require('./handlers/_whoAmI')
+
+            /* Handle request. */
+            pkg = await whoAmI(_conn)
+
+            /* Send response. */
+            return _respond(_conn, action, pkg)
+        default:
+            console.log(`Nothing to do here with [ ${action} ]`)
         }
     } catch (e) {
         console.error(e)
@@ -194,50 +214,3 @@ server.listen(SOCKET_PORT, '127.0.0.1')
 //
 // app.listen(SOCKET_PORT,
 //     () => console.log(`Example app listening on port ${SOCKET_PORT}!`))
-
-
-
-
-
-
-const doDiscovery = async function (_infoHash) {
-    /* Create new Discovery. */
-    const discovery = new Discovery(_infoHash)
-
-    /* Start discovery of peers. */
-    const peers = await discovery.startTracker()
-    console.log('FOUND THESE PEERS', peers)
-}
-
-const requestFile = async function (_address, _site, _innerPath) {
-    /* Create new Peer. */
-    const peer0 = new Peer0(_address, _site)
-
-    /* Open a new connection. */
-    const conn = await peer0.openConnection()
-
-    if (conn && conn.action === 'HANDSHAKE') {
-        /* Start discovery of peers. */
-        const fileData = await peer0.requestFile(_innerPath, 0)
-        console.log('RECEIVED THIS FILE DATA', fileData)
-    }
-}
-
-/* Initialize target zite. */
-const site = '1Gfey7wVXXg1rxk751TBTxLJwhddDNfcdp'
-// const site = '1HeLLo4uzjaLetFx6NH3PMwFP3qbRbTf3D'
-// const site = '1Name2NXVi1RDPDgf5617UoW7xA6YrhM9F'
-
-/* Initialize info hash. */
-const infoHash = Buffer.from(_utils.calcInfoHash(site), 'hex')
-
-/* Initialize inner path. */
-const innerPath = 'index.html'
-// const innerPath = 'archive.py'
-// const innerPath = 'content.json'
-// const innerPath = 'messages.json'
-
-// doDiscovery(infoHash)
-
-const address = '185.142.236.207:10443'
-// requestFile(address, site, innerPath)

@@ -112,11 +112,10 @@ const _handleMetadata = function (metadata) {
     pieceLength = parseInt(torrent['piece length'])
     console.info(`    Piece Length   : ${pieceLength} bytes\n`)
 
-
-subPiecesInBlock = parseInt(pieceLength / Piece.BLOCK_LENGTH)
-console.log(`SUB PIECES IN BLOCK [ ${subPiecesInBlock} ]`)
-piece = new Piece(pieceLength)
-console.log(`HOW MUCH (PIECE) ARE WE MISSING?? ${piece.missing}\n`)
+    subPiecesInBlock = parseInt(pieceLength / Piece.BLOCK_LENGTH)
+    console.log(`SUB PIECES IN BLOCK [ ${subPiecesInBlock} ]`)
+    piece = new Piece(pieceLength)
+    console.log(`HOW MUCH (PIECE) ARE WE MISSING?? ${piece.missing}\n`)
 
 
     /* Process the hash list. */
@@ -233,7 +232,7 @@ net.createServer(socket => {
     /* Handshake. */
     wire.on('handshake', (_infoHash, _peerId, _extensions) => {
         console.info(`Handshake from ${_peerId}`)
-// console.log('HANDSHAKE EXTENSIONS', _extensions)
+        // console.log('HANDSHAKE EXTENSIONS', _extensions)
 
         /* Send the peer our handshake as well. */
         wire.handshake(infoHash, peerId, { dht: true })

@@ -5,7 +5,7 @@ module.exports = function (_hostIp, _hostPort, _peerId, _reqId) {
     // const request = { cmd }
     // const req_id = _utils.addRequest(request) // eslint-disable-line camelcase
     const req_id = _reqId // eslint-disable-line camelcase
-// console.log('HANDSHAKE REQID', req_id)
+    // console.log('HANDSHAKE REQID', req_id)
 
     const crypt = null
     const crypt_supported = [] // eslint-disable-line camelcase

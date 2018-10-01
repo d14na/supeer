@@ -35,9 +35,9 @@ class Peer0 {
         this._reqId = 0
         this._requests = []
 
-        /* Initialize promise holders. */
-        // this._resolve = null
-        // this._reject = null
+        /* Initialize promise holders (used for file requests). */
+        this._resolve = null
+        this._reject = null
     }
 
     get id() {
@@ -83,13 +83,13 @@ class Peer0 {
         return this._requests
     }
 
-    // get resolve() {
-    //     return this._resolve
-    // }
-    //
-    // get reject() {
-    //     return this._reject
-    // }
+    get resolve() {
+        return this._resolve
+    }
+
+    get reject() {
+        return this._reject
+    }
 
     set conn(_conn) {
         this._conn = _conn
@@ -103,13 +103,13 @@ class Peer0 {
         this._innerPath = _innerPath
     }
 
-    // set resolve(_resolve) {
-    //     this._resolve = _resolve
-    // }
-    //
-    // set reject(_reject) {
-    //     this._reject = _reject
-    // }
+    set resolve(_resolve) {
+        this._resolve = _resolve
+    }
+
+    set reject(_reject) {
+        this._reject = _reject
+    }
 
     getRequestId(_reqId) {
         return this._requests[_reqId]
@@ -155,7 +155,7 @@ class Peer0 {
             this.reject = reject
         })
 
-// console.log('STARTING FILE REQUEST')
+        // console.log('STARTING FILE REQUEST')
         const cmd = 'getFile'
         const site = this.site
         this.innerPath = _innerPath
@@ -177,7 +177,7 @@ class Peer0 {
         const pkg = { cmd, req_id, params }
         // console.log('SENDING PACKAGE', pkg)
 
-console.log('THIS IS OUR FIRST INNER PATH', this.innerPath)
+        console.log('THIS IS OUR FIRST INNER PATH', this.innerPath)
         /* Send request. */
         this.conn.write(_utils.encode(pkg), function () {
             console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
@@ -222,12 +222,12 @@ console.log('THIS IS OUR FIRST INNER PATH', this.innerPath)
 
         /* Handle closed connection. */
         this.conn.on('close', function () {
-            console.info(`Connection closed with ${address}`)
+            console.info(`Connection closed with ${this.address}`)
         })
 
         /* Handle connection errors. */
         this.conn.on('error', function (_err) {
-            console.error(`Error detected with ${address} [ ${_err.message} ]`, )
+            console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
         })
 
         /* Handle incoming data. */
@@ -243,13 +243,13 @@ console.log('THIS IS OUR FIRST INNER PATH', this.innerPath)
                 throw new Error('Data failed to be returned from handler.')
             }
 
-if (_utils.isJson(data)) {
-console.log(`Returned data is JSON OBJECT`, data)
-} else if (_utils.isJson(data, true)) {
-console.log(`Returned data is JSON STRING`, JSON.parse(data))
-} else {
-console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
-}
+            if (_utils.isJson(data)) {
+                console.log(`Returned data is JSON OBJECT`, data)
+            } else if (_utils.isJson(data, true)) {
+                console.log(`Returned data is JSON STRING`, JSON.parse(data))
+            } else {
+                console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
+            }
 
             /* Handle handshakes. */
             if (data.success && data.action == 'HANDSHAKE') {
@@ -261,6 +261,9 @@ console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
                 const body = data.decoded.body
                 console.log(`Data body length is [ ${body.length} ]`)
                 console.log(`Data body hash is [ ${_utils.calcFileHash(body)} ]`)
+
+                /* Resolve (this object's) promise. */
+                self.resolve(body)
             }
 
             /* Check for overload. */

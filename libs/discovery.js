@@ -40,7 +40,9 @@ class Discovery {
             announce: [
                 // 'udp://tracker.leechers-paradise.org:6969/announce',
                 // 'udp://tracker.open-internet.nl:6969/announce',
-                'udp://tracker.coppersurfer.tk:6969/announce'
+                'udp://tracker.coppersurfer.tk:6969/announce',
+                'http://tracker.swateam.org.uk:2710/announce',
+                'http://open.acgnxtracker.com/announce'
             ],
             port: _constants.ZEROPEN_PORT
         }
@@ -56,11 +58,12 @@ class Discovery {
         }
     }
 
-    /**
-     * Get Found Peers
-     */
     get foundPeers() {
         return this._foundPeers
+    }
+
+    get foundMax() {
+        return this._foundMax
     }
 
     get peerId() {
@@ -72,6 +75,10 @@ class Discovery {
             Peer Id   : ${Buffer.from(peerId).toString('hex')} [ ${Buffer.from(peerId).toString()} ]
             Info Hash : ${Buffer.from(infoHash).toString('hex')}
         `
+    }
+
+    set foundMax(_found) {
+        this._foundMax = _found
     }
 
     set peerId(_peerId) {
@@ -106,7 +113,7 @@ class Discovery {
         this.tracker = new Tracker(this._trackerOptions)
 
         this.tracker.on('error', function (err) {
-          console.log(err.message)
+            console.log(err.message)
         })
 
         this.tracker.on('warning', function (err) {
@@ -116,14 +123,13 @@ class Discovery {
         })
 
         this.tracker.on('update', function (_data) {
-            console.log(
-        `
-        Status from [ ${_data.announce} ]
-        ________________________________________________________________________________
+            console.log(`
+Status from [ ${_data.announce} ]
+________________________________________________________________________________
 
-        # of Seeders  : ${_data.complete}
-        # of Leechers : ${_data.incomplete}
-        `)
+# of Seeders  : ${_data.complete}
+# of Leechers : ${_data.incomplete}
+            `)
         })
 
         this.tracker.on('peer', function (_addr) {
@@ -158,26 +164,26 @@ class Discovery {
         // this.tracker.destroy()
 
         this.tracker.on('scrape', function (_data) {
-            console.log(
-        `
-        Received scrape response from [ ${_data.announce} ]
-        ________________________________________________________________________________
+            console.log(`
+Received scrape response from [ ${_data.announce} ]
+________________________________________________________________________________
 
-        # of Seeders   : ${_data.complete}
-        # of Leechers  : ${_data.incomplete}
-        # of Downloads : ${_data.downloaded}
-        `)
+# of Seeders   : ${_data.complete}
+# of Leechers  : ${_data.incomplete}
+# of Downloads : ${_data.downloaded}
+            `)
         })
 
         /* Start getting peers from the tracker. */
         this.tracker.start()
 
         setTimeout(() => {
-            if (!this._foundMax) {
-console.log('TIMEOUT CALLED & RAN!')
-                this._foundMax = true
+            if (!this.foundMax) {
+                console.log('TIMEOUT CALLED & RAN!')
+                this.foundMax = true
 
-                resolve(_utils.getFoundPeers())
+                resolve(this.foundPeers)
+                // resolve(_utils.getFoundPeers())
             }
         }, 5000)
 

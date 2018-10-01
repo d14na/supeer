@@ -30,7 +30,7 @@ const _getAccountBySig = function (_source, _signature) {
     }
 }
 
-const _auth = async function (_conn, _data) {
+const _handler = async function (_conn, _data) {
     /* Retrieve the connection source. */
     const source = _conn.source
 
@@ -51,4 +51,4 @@ const _auth = async function (_conn, _data) {
     return pkg
 }
 
-module.exports = _auth
+module.exports = _handler
