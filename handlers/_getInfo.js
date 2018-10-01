@@ -8,11 +8,17 @@ const _requestFile = function (_peer, _destination, _innerPath) {
         /* Create new Peer. */
         const peer0 = new Peer0(_peer, _destination)
 
+        console.log('OPEN CONNECTION');
         /* Open a new connection. */
         const conn = await peer0.openConnection()
-            .catch(_reject)
+            .catch((err) => {
+                console.log('WHAT HAPPENED WITH OUR CONNECTION??')
+                _reject(err)
+            })
 
-        if (conn && conn.action === 'HANDSHAKE') {
+        console.log('ACTION IS', conn.action)
+        if (conn) {
+        // if (conn && conn.action === 'HANDSHAKE') {
             /* Start discovery of peers. */
             const fileData = await peer0.requestFile(_innerPath, 0)
                 .catch(_reject)
