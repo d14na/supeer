@@ -8,7 +8,6 @@ const _requestFile = function (_peer, _destination, _innerPath) {
         /* Create new Peer. */
         const peer0 = new Peer0(_peer, _destination)
 
-        console.log('OPEN CONNECTION');
         /* Open a new connection. */
         const conn = await peer0.openConnection()
             .catch((err) => {
@@ -16,14 +15,11 @@ const _requestFile = function (_peer, _destination, _innerPath) {
                 _reject(err)
             })
 
-        console.log('ACTION IS', conn.action)
-        if (conn) {
-        // if (conn && conn.action === 'HANDSHAKE') {
+        if (conn && conn.action === 'HANDSHAKE') {
             /* Start discovery of peers. */
             const fileData = await peer0.requestFile(_innerPath, 0)
                 .catch(_reject)
 
-            console.log('RECEIVED THIS FILE DATA', fileData)
             _resolve(fileData)
         } else {
             _reject(`Handshake with ${_peer} failed!`)
@@ -75,12 +71,6 @@ const _handler = async function (_data) {
             console.error(`Oops! Looks like ${destination} was a dud, try again...`)
         })
 
-    console.log('CONFIG 1', config)
-    config = JSON.parse(config)
-    console.log('CONFIG 2', config)
-    // config = Buffer.from(config).toString()
-    // console.log('CONFIG 3', config)
-
     /* Validate results. */
     if (filtered && filtered.length > 0 && config) {
         success = true
@@ -88,9 +78,13 @@ const _handler = async function (_data) {
         success = false
     }
 
+    /* Parse configuration. */
+    config = JSON.parse(config)
+
     /* Build package. */
     pkg = { peers: filtered, config, success }
 
     return pkg
 }
+
 module.exports = _handler

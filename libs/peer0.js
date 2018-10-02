@@ -211,7 +211,6 @@ class Peer0 {
         const pkg = { cmd, req_id, params }
         // console.log('SENDING PACKAGE', pkg)
 
-        console.log('THIS IS OUR FIRST INNER PATH', this.innerPath)
         /* Send request. */
         this.conn.write(_utils.encode(pkg), function () {
             console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
@@ -236,7 +235,6 @@ class Peer0 {
         })
 
         /* Open connection to peer. */
-        console.log('CONNECTION PARAMETERS', this.conn, this.port, this.ip);
         this.conn = net.createConnection(this.port, this.ip, () => {
             console.info(`Opened new connection [ ${this.ip}:${this.port} ]`)
 
@@ -268,26 +266,24 @@ class Peer0 {
 
         /* Handle incoming data. */
         this.conn.on('data', async function (_data) {
-            console.log('INCOMING DATA', _data)
+            // console.log('INCOMING DATA', _data)
 
-            console.log('HANDLE INCOMING DATA')
             /* Retrieve response from data handler. */
             const data = await self._handleIncomingData(_data)
                 .catch((err) => console.error('handleIncomingData ERROR', err))
-            console.log('INCOMING DATA HANDLED', data)
 
             /* Validate data. */
             if (!data) {
                 throw new Error('Data failed to be returned from handler.')
             }
 
-            if (_utils.isJson(data)) {
-                console.log(`Returned data is JSON OBJECT`, data)
-            } else if (_utils.isJson(data, true)) {
-                console.log(`Returned data is JSON STRING`, JSON.parse(data))
-            } else {
-                console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
-            }
+            // if (_utils.isJson(data)) {
+            //     console.log(`Returned data is JSON OBJECT`, data)
+            // } else if (_utils.isJson(data, true)) {
+            //     console.log(`Returned data is JSON STRING`, JSON.parse(data))
+            // } else {
+            //     console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
+            // }
 
             /* Handle handshakes. */
             if (data.success && data.action == 'HANDSHAKE') {
@@ -310,16 +306,6 @@ class Peer0 {
                 /* Continue with data request. */
                 _requestFile(peer, data.location)
             }
-
-            /* Parse and update the config files. */
-            // if (data.request && data.request.innerPath === 'content.json') {
-            //     const body = data.decoded.body
-            //
-            //     const files = JSON.parse(body).files
-            //
-            //     _utils._updateFiles(files)
-            // }
-
         })
 
         /* Return the promise. */
@@ -419,12 +405,12 @@ class Peer0 {
 
                 /* Add payload to current overload. */
                 if (this.overload) {
-                    console.log('OVERLOAD', this.overload.length)
-                    console.log('PAYLOAD', this.payload.length)
+                    // console.log('OVERLOAD', this.overload.length)
+                    // console.log('PAYLOAD', this.payload.length)
                     /* Add the current payload (body) to the overload (body). */
                     this.overload = _utils.concatOverload(this.overload, this.payload)
                 } else {
-                    console.log('FIRST PAYLOAD', _utils.decode(this.payload))
+                    // console.log('FIRST PAYLOAD', _utils.decode(this.payload))
                     this.overload = this.payload
                 }
 
@@ -447,7 +433,7 @@ class Peer0 {
                 if (this.overload) {
                     /* Add (FINAL) payload to current overload. */
                     this.overload = _utils.concatOverload(this.overload, this.payload)
-                    console.log('HANDLE THE OVERLOAD 1', this.overload.length)
+                    // console.log('HANDLE THE OVERLOAD 1', this.overload.length)
 
                     /* Copy the overload holder to the payload. */
                     this.payload = this.overload
@@ -461,10 +447,8 @@ class Peer0 {
         }
 
         /* Handle file data parsing. */
-        console.log('HAS ENDED', hasEnded)
-        console.log('HANDSHAKE COMPLETE', this.handshakeComplete)
         if (hasEnded || !this.handshakeComplete) {
-            console.log('DATA STREAM HAS ENDED!!!', this.payload.length)
+            // console.log('DATA STREAM HAS ENDED!!!', this.payload.length)
 
             /* Decode the payload. */
             decoded = _utils.decode(this.payload)
@@ -568,7 +552,6 @@ class Peer0 {
         /* Return the promise. */
         return promise
     }
-
 }
 
 module.exports = Peer0

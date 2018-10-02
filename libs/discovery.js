@@ -179,11 +179,10 @@ ________________________________________________________________________________
 
         setTimeout(() => {
             if (!this.foundMax) {
-                console.log('TIMEOUT CALLED & RAN!')
+                // console.log('DISCOVERY TIMEOUT CALLED!')
                 this.foundMax = true
 
                 resolve(this.foundPeers)
-                // resolve(_utils.getFoundPeers())
             }
         }, 5000)
 

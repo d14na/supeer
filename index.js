@@ -29,7 +29,7 @@ const _handleClose = function () {
 }
 
 const ws = sockjs.createServer({
-    sockjs_url: 'js/sockjs.min.js' })
+    sockjs_url: './js/sockjs.min.js' })
 
 ws.on('connection', function (conn) {
     /* Initialize data event. */
