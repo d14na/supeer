@@ -1,8 +1,5 @@
-const _handler = async function (_data) {
-    /* Retrieve the query. */
-    const query = _data.query
-
-    console.log('Lets try to find something to do with', query)
+const _handler = async function (_query) {
+    console.log('Lets try to find something to do with', _query)
 
     /* Initialize result. */
     let result = null
@@ -10,18 +7,29 @@ const _handler = async function (_data) {
     /* Initialize success. */
     let success = null
 
-    switch (query) {
-    case 'lorem':
+    /* Initialize error. */
+    let error = null
+
+    /* Initialize search flag. */
+    let search = true
+
+    /* Validate query. */
+    if (_query.slice(-1) === '?') {
+        _query = _query.slice(0, _query.length - 1)
+    }
+
+    switch (_query.toUpperCase()) {
+    case 'LOREM':
         result = getLorem()
         success = true
         break
     default:
-        result = `Sorry, we coudn't find anything for [ ${query} ]`
+        error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${_query}</strong> ]`
         success = false
     }
 
     /* Build package. */
-    pkg = { result, success }
+    pkg = { search, result, error, success }
 
     return pkg
 }

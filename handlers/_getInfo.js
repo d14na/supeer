@@ -60,6 +60,19 @@ const _isPublicKey = function (_val) {
 }
 
 /**
+ * Magnet Link Validation
+ *
+ * FIXME Improve validation.
+ */
+const _isMagnetLink = function (_val) {
+    if (_val.slice(0, 20) === 'magnet:?xt=urn:btih:') {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
  * Info Hash Validation
  *
  * FIXME Improve validation.
@@ -88,7 +101,7 @@ const _dotBitToPk = function (_name) {
     }
 
     /* Search for the public key. */
-    publicKey = dotBitNames[_name]
+    publicKey = dotBitNames[_name.toLowerCase()]
 
     console.log(`Public key is [ ${publicKey} ]`)
 
@@ -113,13 +126,36 @@ const _handler = async function (_data) {
     let infoHash = null
 
     /* Retrieve destination. */
-    destination = _data.query
-    console.log('Querying peers for destination', destination)
+    // destination = _data.query
+    // console.log('Querying peers for destination', destination)
 
     /* Destination dotBit detectoin. */
-    if (_isDotBit(destination) || (!_isPublicKey(destination) && !_isInfoHash(destination))) {
+    // NOTE Public key (Bitcoin address) validation should be first.
+    if (_isMagnetLink(_data.query)) {
+        /* Initialize BitTorrent handler. */
+        const bitTorrent = require('./_bitTorrent')
+
+        /* Retrieve info hash. */
+        infoHash = _data.query.slice(20, 60)
+
+        /* Handle request. */
+        pkg = await bitTorrent(infoHash)
+
+        return pkg
+    } else if (_isDotBit(_data.query) || (!_isPublicKey(_data.query) && !_isInfoHash(_data.query))) {
         /* Update destination. */
-        destination = _dotBitToPk(destination)
+        destination = _dotBitToPk(_data.query)
+    } else if (_isPublicKey(_data.query)) {
+        /* Update destination. */
+        destination = _data.query
+    } else if (_isInfoHash(_data.query)) {
+        /* Initialize BitTorrent handler. */
+        const bitTorrent = require('./_bitTorrent')
+
+        /* Handle request. */
+        pkg = await bitTorrent(_data.query)
+
+        return pkg
     }
 
     /* Validate destination. */
@@ -130,10 +166,10 @@ const _handler = async function (_data) {
         const search = require('./_search')
 
         /* Handle request. */
-        pkg = await search(data)
+        pkg = await search(_data.query)
 
-        /* Send response. */
-        return _respond(_conn, action, pkg)
+        /* Return package. */
+        return pkg
     }
 
     /* Calculate info hash. */
@@ -160,7 +196,7 @@ const _handler = async function (_data) {
     /* Initialize config. */
     let config = null
 
-    // FOR TESTING PURPOSES ONLY
+    // TEMP FOR TESTING PURPOSES ONLY
     filtered.unshift('185.142.236.207:10443')
 
     console.log(`Requesting ${innerPath} from ${destination} via ${filtered[0]}`);
