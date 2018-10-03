@@ -109,8 +109,11 @@ const _handler = async function (_data) {
     /* Initialize destination. */
     let destination = null
 
+    /* Initialize info hash. */
+    let infoHash = null
+
     /* Retrieve destination. */
-    destination = _data.dest
+    destination = _data.query
     console.log('Querying peers for destination', destination)
 
     /* Destination dotBit detectoin. */
@@ -121,11 +124,20 @@ const _handler = async function (_data) {
 
     /* Validate destination. */
     if (!destination) {
-        return console.log(`Could NOT validate destination [ ${destination} ]`)
+        // return console.log(`Could NOT validate destination [ ${destination} ]`)
+
+        /* Initialize search handler. */
+        const search = require('./_search')
+
+        /* Handle request. */
+        pkg = await search(data)
+
+        /* Send response. */
+        return _respond(_conn, action, pkg)
     }
 
     /* Calculate info hash. */
-    const infoHash = Buffer.from(_utils.calcInfoHash(destination), 'hex')
+    infoHash = Buffer.from(_utils.calcInfoHash(destination), 'hex')
 
     /* Create new Discovery. */
     const discovery = new Discovery(infoHash)

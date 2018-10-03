@@ -153,15 +153,15 @@ const _handleData = async function (_conn, _data) {
 
             /* Send response. */
             return _respond(_conn, action, pkg)
-        case 'SEARCH':
-            /* Initialize handler. */
-            const search = require('./handlers/_search')
-
-            /* Handle request. */
-            pkg = await search(data)
-
-            /* Send response. */
-            return _respond(_conn, action, pkg)
+        // case 'SEARCH':
+        //     /* Initialize handler. */
+        //     const search = require('./handlers/_search')
+        //
+        //     /* Handle request. */
+        //     pkg = await search(data)
+        //
+        //     /* Send response. */
+        //     return _respond(_conn, action, pkg)
         case 'WHOAMI':
             /* Initialize handler. */
             const whoAmI = require('./handlers/_whoAmI')
