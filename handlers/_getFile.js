@@ -78,11 +78,26 @@ const _handler = async function (_data) {
         success = false
     }
 
-    /* Decode buffer to string. */
-    body = body.toString()
+    /* Initialize file extension. */
+    let fileExt = null
+
+    if (innerPath.indexOf('.') !== -1) {
+        /* Retrieve the file extention. */
+        fileExt = innerPath.split('.').pop()
+    }
+
+    /* Decode body (if needed). */
+    switch (fileExt.toUpperCase()) {
+    case 'HTM':
+    case 'HTML':
+        body = body.toString()
+        break
+    default:
+        // NOTE Leave as buffer (for binary files).
+    }
 
     /* Build package. */
-    pkg = { peers: filtered, body, success }
+    pkg = { dest: destination, innerPath, body, success }
 
     return pkg
 }

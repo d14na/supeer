@@ -9,7 +9,7 @@ const net = require('net')
 const ut_metadata = require('ut_metadata') // eslint-disable-line camelcase
 
 /* Initialize constants. */
-const BT_0NET_PORT = 6890
+const BT_0NET_PORT = 6888
 const PIECE_HASH_LENGTH = 20
 
 /* Initialize session holders. */
@@ -57,6 +57,7 @@ const _calcHash = function (_data) {
 /* Initialize a new peer id. */
 const peerId = Buffer.from(_getPeerId('US'))
 
+// const infoHash = Buffer.from('1049E19C3399F991E1AE3A6D74C18E7A42DBA07F', 'hex')
 const infoHash = Buffer.from('01c227c8c9aac311f9365b163ea94708c27a7db4', 'hex')
 // console.log('Peer Id/InfoHash', peerId, infoHash)
 
@@ -203,7 +204,7 @@ const _requestSubPiece = function (_wire, _pieceIndex, _subPieceIndex, _offset, 
 
 
 net.createServer(socket => {
-    // console.info('NEW incoming peer connection!')
+    console.info('NEW incoming peer connection!')
 
     /* Initialize the wire protocol. */
     const wire = new Protocol()
@@ -321,11 +322,11 @@ dht.listen(BT_0NET_PORT, function () {
 /**
  * Announce that we have peers seeding this info hash.
  */
-// dht.announce(infoHash, BT_0NET_PORT, function (err) {
-//     if (err) {
-//         console.error('DHT announcement error', err)
-//     }
-// })
+dht.announce(infoHash, BT_0NET_PORT, function (err) {
+    if (err) {
+        console.error('DHT announcement error', err)
+    }
+})
 
 dht.on('peer', function (peer, infoHash, from) {
     // console.log('found potential peer ' + peer.host + ':' + peer.port + ' through ' + from.address + ':' + from.port)

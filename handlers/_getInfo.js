@@ -3,6 +3,12 @@ const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
 const Peer0 = require('../libs/peer0')
 
+/* Initialize local data sources. */
+const dotBitNames = require('../data/names.json')
+
+/**
+ * File Request Handler
+ */
 const _requestFile = function (_peer, _destination, _innerPath) {
     return new Promise(async (_resolve, _reject) => {
         /* Create new Peer. */
@@ -27,6 +33,72 @@ const _requestFile = function (_peer, _destination, _innerPath) {
     })
 }
 
+/**
+ * Dot Bit Name Detection
+ *
+ * FIXME Improve validation.
+ */
+const _isDotBit = function (_val) {
+    if (_val.slice(-4).toUpperCase() === '.BIT') {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Public Key Validation
+ *
+ * FIXME Improve validation.
+ */
+const _isPublicKey = function (_val) {
+    if (_val.slice(0, 1) === '1' && (_val.length === 33 || _val.length === 34)) {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Info Hash Validation
+ *
+ * FIXME Improve validation.
+ */
+const _isInfoHash = function (_val) {
+    if (_val.length === 40) {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Retrieve dotBit Public Key
+ */
+const _dotBitToPk = function (_name) {
+    console.log(`Looking up public key for [ ${_name} ]`)
+
+    /* Initialize public key. */
+    let publicKey = null
+
+    /* Validate name. */
+    if (_name.toLowerCase().indexOf('.bit') === -1) {
+        /* Append dotBit. */
+        _name += '.bit'
+    }
+
+    /* Search for the public key. */
+    publicKey = dotBitNames[_name]
+
+    console.log(`Public key is [ ${publicKey} ]`)
+
+    /* Return public key. */
+    return publicKey
+}
+
+/**
+ * Information Request Handler
+ */
 const _handler = async function (_data) {
     /* Initialize success. */
     let success = null
@@ -34,9 +106,23 @@ const _handler = async function (_data) {
     /* Initialize peers. */
     let peers = null
 
+    /* Initialize destination. */
+    let destination = null
+
     /* Retrieve destination. */
-    const destination = _data.dest
+    destination = _data.dest
     console.log('Querying peers for destination', destination)
+
+    /* Destination dotBit detectoin. */
+    if (_isDotBit(destination) || (!_isPublicKey(destination) && !_isInfoHash(destination))) {
+        /* Update destination. */
+        destination = _dotBitToPk(destination)
+    }
+
+    /* Validate destination. */
+    if (!destination) {
+        return console.log(`Could NOT validate destination [ ${destination} ]`)
+    }
 
     /* Calculate info hash. */
     const infoHash = Buffer.from(_utils.calcInfoHash(destination), 'hex')
