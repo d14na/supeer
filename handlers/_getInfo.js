@@ -1,3 +1,5 @@
+const ip = require('ip')
+
 /* Initialize local libraries. */
 const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
@@ -195,17 +197,26 @@ const _handler = async function (_data) {
 
         /* Filter peers. */
         const filtered = peers.filter((_peer) => {
-            /* Retrieve port. */
-            const port = parseInt(_peer.split(':')[1])
+            /* Retrieve ip address. */
+            const ipAddress = _peer.split(':')[0]
 
-            return port > 1
+            /* Retrieve port number. */
+            const portNum = parseInt(_peer.split(':')[1])
+
+            /* Filter out this host (as that will throw an error). */
+            // console.log(`testing ip ${ipAddress} === ${ip.address()}`, ipAddress === ip.address())
+            if (ipAddress === ip.address()) {
+                return false
+            }
+
+            return portNum > 1
         })
 
         /* Initialize config. */
         let config = null
 
         // TEMP FOR TESTING PURPOSES ONLY
-        // filtered.unshift('185.142.236.207:10443')
+        filtered.unshift('185.142.236.207:10443')
 
         console.log(`Requesting 'content.json' from ${destination} via ${filtered[0]}`);
         config = await _requestConfig(filtered[0], destination)
@@ -232,7 +243,7 @@ const _handler = async function (_data) {
         /* Initialize info. */
         let config = null
 
-        // console.log(`Requesting 'content.json' from ${destination} via ${filtered[0]}`);
+        /* Request torrent info from DHT nodes and peers. */
         info = await _requestInfo(infoHash)
             .catch((err) => {
                 console.error(`Oops! Looks like ${null} was a dud, try again...`)

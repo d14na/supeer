@@ -1,7 +1,6 @@
 const bencode = require('bencode')
 const Bitfield = require('bitfield')
 const DHT = require('bittorrent-dht')
-const net = require('net')
 const Piece = require('torrent-piece')
 const Protocol = require('bittorrent-protocol')
 const ut_metadata = require('ut_metadata') // eslint-disable-line camelcase
@@ -220,7 +219,7 @@ class Torrent {
     /**
      * Initialization
      */
-    init() {
+    init(_wsServer) {
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => {
             /* Initialize promise holders. */
@@ -257,19 +256,12 @@ class Torrent {
         })
 
         /* Start listening on new DHT server. */
-        this.dht.listen(_constants.ZEROPEN_DHT_PORT, () => {
-            console.info(`DHT listening on port [ ${_constants.ZEROPEN_DHT_PORT} ]`)
+        this.dht.listen(_constants.ZEROPEN_PEX_PORT, () => {
+            console.info(`DHT listening on port [ ${_constants.ZEROPEN_PEX_PORT} ]`)
         })
 
         this.dht.on('ready', () => {
             console.info('DHT has been initialized and is ready for commands.')
-
-            /* Announce that we have peers seeding this info hash. */
-            // this.dht.announce(this.infoHash, _constants.ZEROPEN_DHT_PORT, (_err) => {
-            //     if (_err) {
-            //         console.error('DHT announcement error', _err)
-            //     }
-            // })
 
             console.info(`Now requesting peers for [ ${Buffer.from(this.infoHash).toString('hex')} ]`)
 
@@ -326,18 +318,27 @@ class Torrent {
 
                 /* Return peer summary. */
                 this.resolve({ topPeers, allPeers, totalPeers })
+
+                console.log(`DHT is announcing [ ${this.infoHash} ]`)
+                /* Announce that we have peers seeding this info hash. */
+                this.dht.announce(this.infoHash, _constants.ZEROPEN_PEX_PORT, (_err) => {
+                    if (_err) {
+                        console.error('DHT announcement error', _err)
+                    }
+                })
+
             })
         })
 
         /* Start listening on new socket server. */
-        const server = net.createServer(_socket => {
-            console.info('NEW incoming peer connection!')
+        // const server = net.createServer(_socket => {
+            // console.info('NEW incoming peer connection!')
 
             /* Initialize the wire protocol. */
             this.wire = new Protocol()
 
             // NOTE We are piping to and from the protocol.
-            _socket.pipe(this.wire).pipe(_socket)
+            _wsServer.pipe(this.wire).pipe(_wsServer)
 
             /* Request metadata, if needed. */
             if (!this.haveMetadata) {
@@ -443,7 +444,7 @@ class Torrent {
         })
 
         /* Start listening. */
-        // server.listen(_constants.ZEROPEN_DHT_PORT)
+        // server.listen(_constants.ZEROPEN_PEX_PORT)
 
         return promise
     }
