@@ -1,19 +1,5 @@
 const crypto = require('crypto')
 
-// /**
-//  * Get Request Id
-//  */
-// const getRequestId = function (_reqId) {
-//     return _requests[_reqId]
-// }
-//
-// /**
-//  * Get Request Id
-//  */
-// const getRequests = function () {
-//     return _requests
-// }
-
 /**
  * Get Peer Id
  *

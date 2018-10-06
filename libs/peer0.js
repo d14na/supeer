@@ -1,11 +1,9 @@
-'use strict'
-
 const Tracker = require('bittorrent-tracker')
 const DHT = require('bittorrent-dht')
 const net = require('net')
 
+/* Initialize local library. */
 const _constants = require('./_constants')
-const _handler = require('./_peer0DataHandler')
 const _handshake = require('./_handshake')
 const _utils = require('./_utils')
 
@@ -183,10 +181,10 @@ class Peer0 {
 
     requestFile(_innerPath, _location) {
         /* Initialize a NEW client connection/handshake (if needed). */
-        const promise = new Promise((resolve, reject) => {
+        const promise = new Promise((_resolve, _reject) => {
             /* Initialize promise holders. */
-            this.resolve = resolve
-            this.reject = reject
+            this.resolve = _resolve
+            this.reject = _reject
         })
 
         // console.log('STARTING FILE REQUEST')
