@@ -8,7 +8,7 @@ const Torrent = require('../libs/torrent')
 const dotBitNames = require('../data/names.json')
 
 /**
- * File Request Handler
+ * Zite Configuration Request Handler
  */
 const _requestConfig = function (_peer, _destination) {
     return new Promise(async (_resolve, _reject) => {
@@ -35,35 +35,21 @@ const _requestConfig = function (_peer, _destination) {
 }
 
 /**
- * File Request Handler
+ * Torrent Information Request Handler
  */
 const _requestInfo = function (_infoHash) {
     return new Promise(async (_resolve, _reject) => {
-        try {
-            /* Create new Torrent manager. */
-            const torrent = new Torrent(null, _infoHash)
+        /* Create new Torrent manager. */
+        const torrent = new Torrent(null, _infoHash)
 
-            /* Open a new connection. */
-            const conn = await torrent.init()
-                .catch((err) => {
-                    console.log('WHAT HAPPENED WITH OUR CONNECTION??')
-                    _reject(err)
-                })
+        /* Initialize a new Torrent (DHT discovery). */
+        const init = await torrent.init()
+            .catch((_err) => {
+                console.error('What happened with Torrent Initialization??')
+                _reject(_err)
+            })
 
-            _resolve(conn)
-
-            // if (conn && conn.action === 'HANDSHAKE') {
-            //     /* Start discovery of peers. */
-            //     const fileData = await peer0.requestInfo()
-            //         .catch(_reject)
-            //
-            //     _resolve(fileData)
-            // } else {
-            //     _reject(`Handshake with ${_peer} failed!`)
-            // }
-        } catch (e) {
-            console.log('NETWORK ERROR:', e)
-        }
+        _resolve(init)
     })
 }
 

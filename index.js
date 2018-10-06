@@ -145,27 +145,14 @@ const _handleData = async function (_conn, _data) {
             /* Send response. */
             return _respond(_conn, action, pkg)
         case 'GETINFO':
-            try {
-                /* Initialize handler. */
-                const getInfo = require('./handlers/_getInfo')
+            /* Initialize handler. */
+            const getInfo = require('./handlers/_getInfo')
 
-                /* Handle request. */
-                pkg = await getInfo(data)
+            /* Handle request. */
+            pkg = await getInfo(data)
 
-                /* Send response. */
-                return _respond(_conn, action, pkg)
-            } catch (e) {
-                console.log('INDEX ERROR:', e)
-            }
-        // case 'SEARCH':
-        //     /* Initialize handler. */
-        //     const search = require('./handlers/_search')
-        //
-        //     /* Handle request. */
-        //     pkg = await search(data)
-        //
-        //     /* Send response. */
-        //     return _respond(_conn, action, pkg)
+            /* Send response. */
+            return _respond(_conn, action, pkg)
         case 'WHOAMI':
             /* Initialize handler. */
             const whoAmI = require('./handlers/_whoAmI')

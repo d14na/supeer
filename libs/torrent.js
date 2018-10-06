@@ -221,207 +221,231 @@ class Torrent {
      * Initialization
      */
     init() {
-        try {
-            /* Initialize a NEW client connection/handshake (if needed). */
-            const promise = new Promise((_resolve, _reject) => {
-                /* Initialize promise holders. */
-                this.resolve = _resolve
-                this.reject = _reject
-            })
+        /* Initialize a NEW client connection/handshake (if needed). */
+        const promise = new Promise((_resolve, _reject) => {
+            /* Initialize promise holders. */
+            this.resolve = _resolve
+            this.reject = _reject
+        })
 
-            /* Generate new peer id. */
-            this.peerId = Buffer.from(_utils.getPeerId('US'))
+        /* Generate new peer id. */
+        this.peerId = Buffer.from(_utils.getPeerId('US'))
 
-            /* DHT options. */
-            const dhtOptions = {
-                nodeId: this.peerId
+        /* DHT options. */
+        const dhtOptions = {
+            nodeId: this.peerId
+        }
+
+        /* Create new DHT. */
+        this.dht = new DHT()
+        // this.dht = new DHT(dhtOptions)
+
+        this.dht.on('error', (_err) => {
+            console.log('DHT fatal error', _err)
+        })
+
+        // this.dht.on('announce', function (peer, infoHash) { ... })
+        // Emitted when a peer announces itself in order to be stored in the DHT.
+
+        this.dht.on('peer', (_peer, _infoHash, _from) => {
+            if (DEBUG) {
+                console.log(`Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
             }
 
-            /* Create new DHT. */
-            this.dht = new DHT()
-            // this.dht = new DHT(dhtOptions)
+            /* Add DHT peer. */
+            this._addDhtPeer(`${_peer.host}:${_peer.port}`)
+        })
 
-            /* Start listening on new DHT server. */
-            this.dht.listen(_constants.ZEROPEN_DHT_PORT, () => {
-                console.info(`DHT listening on port [ ${_constants.ZEROPEN_DHT_PORT} ]`)
-            })
+        /* Start listening on new DHT server. */
+        this.dht.listen(_constants.ZEROPEN_DHT_PORT, () => {
+            console.info(`DHT listening on port [ ${_constants.ZEROPEN_DHT_PORT} ]`)
+        })
 
-            this.dht.on('ready', () => {
-                console.info('DHT is ready.')
+        this.dht.on('ready', () => {
+            console.info('DHT has been initialized and is ready for commands.')
 
-                /* Announce that we have peers seeding this info hash. */
-                // this.dht.announce(this.infoHash, _constants.ZEROPEN_DHT_PORT, (_err) => {
-                //     if (_err) {
-                //         console.error('DHT announcement error', _err)
-                //     }
-                // })
+            /* Announce that we have peers seeding this info hash. */
+            // this.dht.announce(this.infoHash, _constants.ZEROPEN_DHT_PORT, (_err) => {
+            //     if (_err) {
+            //         console.error('DHT announcement error', _err)
+            //     }
+            // })
 
-                this.dht.on('peer', (_peer, _infoHash, _from) => {
-                    if (DEBUG) {
-                        console.log(`Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
-                    }
+            console.info(`Now requesting peers for [ ${Buffer.from(this.infoHash).toString('hex')} ]`)
 
-                    /* Add DHT peer. */
-                    this._addDhtPeer(`${_peer.host}:${_peer.port}`)
-                })
-
-                /* Request peers with our info hash (from all available nodes). */
-                this.dht.lookup(this.infoHash, (_err, _nodesFound) => {
-                    if (_err) {
-                        return console.error('DHT lookup error', _err)
-                    }
-
-                    console.info(`DHT found [ ${_nodesFound} ] nodes.`)
-
-                    /* Sort peers by node references. */
-                    this.dhtPeers.sort((a, b) => {
-                        return b['nodeRefs'] - a['nodeRefs']
-                    })
-
-                    /* List the TOP 50 peers. */
-                    for (let [index, peer] of this.dhtPeers.entries()) {
-                        /* List max 50 peers. */
-                        if (index === 50) {
-                            break
-                        }
-
-                        /* TOP Nodes. */
-                        if (index === 0) {
-                            console.log('\nTOP Nodes for Info Hash')
-                            console.log('----------------------------------------')
-                        }
-
-                        /* Premium ONLY Nodes. */
-                        if (index === 3) {
-                            console.log('\nHODLRE & Subscriber ONLY Nodes')
-                            console.log('----------------------------------------')
-                        }
-
-                        console.log(`Peer #${index + 1} of ${this.dhtPeers.length}: ${peer['address']} has ${peer['nodeRefs']} node references`)
-                    }
-                })
-            })
-
-            /* Start listening on new socket server. */
-            const server = net.createServer(_socket => {
-                console.info('NEW incoming peer connection!')
-
-                /* Initialize the wire protocol. */
-                this.wire = new Protocol()
-
-                // NOTE We are piping to and from the protocol.
-                _socket.pipe(this.wire).pipe(_socket)
-
-                /* Request metadata, if needed. */
-                if (!this.haveMetadata) {
-                    // initialize the extension
-                    this.wire.use(ut_metadata())
-
-                    // ask the peer to send us metadata
-                    this.wire.ut_metadata.fetch()
-
-                    // 'metadata' event will fire when the metadata arrives and is verified to be correct!
-                    this.wire.ut_metadata.on('metadata', this._handleMetadata)
-
-                    // optionally, listen to the 'warning' event if you want to know that metadata is
-                    // probably not going to arrive for one of the above reasons.
-                    this.wire.ut_metadata.on('warning', _err => {
-                        console.log('METADATA WARNING', _err.message)
-                    })
+            /* Request peers with our info hash (from all available nodes). */
+            this.dht.lookup(this.infoHash, (_err, _nodesFound) => {
+                if (_err) {
+                    return console.error('DHT lookup error', _err)
                 }
 
-                /* Handshake. */
-                this.wire.on('handshake', (_infoHash, _peerId, _extensions) => {
-                    console.info(`Handshake from ${_peerId}`)
-                    // console.log('HANDSHAKE EXTENSIONS', _extensions)
+                console.info(`DHT found [ ${_nodesFound} ] nodes.`)
 
-                    /* Add new peer. */
-                    this._addPeer(_peerId, _extensions)
+                /* Retrieve # of total peers found. */
+                const totalPeers = this.dhtPeers.length
 
-                    /* Send the peer our handshake as well. */
-                    this.wire.handshake(this.infoHash, this.peerId, { dht: true })
+                /* Sort peers by node references. */
+                this.dhtPeers.sort((a, b) => {
+                    return b['nodeRefs'] - a['nodeRefs']
                 })
 
-                this.wire.on('bitfield', _bitfield => {
-                    // console.log('BITFIELD', _bitfield)
+                /* Initialize holder for TOP 3 peers. */
+                let topPeers = []
 
-                    const field = new Bitfield(_bitfield.buffer)
-                    // console.log('BITFILED BUFFER', field.buffer)
-                })
-
-                this.wire.on('have', _blockIndex => {
-                    // console.log('HAVE', _blockIndex, this.wire.peerInterested, this.wire.amInterested)
-
-                    if (this.wire.peerPieces.get(this.blockIndex)) {
-                        /* Announce our interest in this block. */
-                        console.log(`Announcing our interest in block #${this.blockIndex}`)
-                        this.wire.have(this.blockIndex)
-                    }
-                })
-
-                this.wire.on('request', (_blockIndex, _offset, _length, _callback) => {
-                    console.log('OH NO! A PEER HAS REQUESTED BLOCK', _blockIndex)
-                    // ... read chunk ...
-                    // callback(null, chunk) // respond back to the peer
-                    _callback(null)
-                })
-
-                this.wire.on('interested', () => {
-                    console.log('peer is now interested');
-                })
-
-                this.wire.on('uninterested', () => {
-                    console.log('peer is no longer interested');
-                })
-
-                this.wire.on('port', _dhtPort => {
-                    // peer has sent a port to us
-                    // console.log('DHT PORT', _dhtPort)
-                })
-
-                this.wire.on('keep-alive', () => {
-                    console.log('KEEP ALIVE')
-                    // peer sent a keep alive - just ignore it
-                })
-
-                this.wire.on('choke', () => {
-                    console.log('NOW BEING CHOKED! ' + this.wire.peerChoking);
-                    // the peer is now choking us
-                })
-
-                this.wire.on('unchoke', () => {
-                    if (this.haveDataSource) {
-                        // FIXME Should we send a cancel (for our request)?
-                        return '\n\nOH THANKS! BUT WE GOT THAT COVERED ALREADY!'
+                /* List the TOP 50 peers. */
+                for (let [index, peer] of this.dhtPeers.entries()) {
+                    /* List max 50 peers. */
+                    if (index === 50) {
+                        break
                     }
 
-                    console.log('\n\n*** PEER is no longer choking us: ' + this.wire.peerChoking)
-
-                    if (this.wire.peerPieces.get(this.blockIndex)) {
-                        console.log('AND THEY HAVE THE BLOCK THAT WE NEED!')
-                    } else {
-                        console.log('OH NO! THEY DONT HAVE THE BLOCK WE NEED')
+                    /* TOP Nodes. */
+                    if (index === 0) {
+                        console.log('\nTOP Nodes for Info Hash')
+                        console.log('----------------------------------------')
                     }
 
-                    if (this.chunkIndex < this.numBlockChunks) {
-                        const offset = (this.chunkIndex * Piece.BLOCK_LENGTH)
-                        const length = Piece.BLOCK_LENGTH
-
-                        console.log(`Making chunk request [ ${this.blockIndex}, ${this.chunkIndex} ] [ ${offset}, ${length} ]`)
-
-                        /* Request a new chunk. */
-                        this._requestChunk(this.blockIndex, this.chunkIndex, offset, length)
+                    if (index < 3) {
+                        topPeers.push({
+                            address: peer['address'],
+                            nodeRefs: peer['nodeRefs']
+                        })
                     }
+
+                    /* Premium ONLY Nodes. */
+                    if (index === 3) {
+                        console.log('\nHODLRE & Subscriber ONLY Nodes')
+                        console.log('----------------------------------------')
+                    }
+
+                    console.log(`Peer #${index + 1} of ${totalPeers}: ${peer['address']} has ${peer['nodeRefs']} node references`)
+                }
+
+                /* Initialize ALL peers info. */
+                const allPeers = 'This is a ZeroResident feature. Please subscribe..'
+
+                /* Return peer summary. */
+                this.resolve({ topPeers, allPeers, totalPeers })
+            })
+        })
+
+        /* Start listening on new socket server. */
+        const server = net.createServer(_socket => {
+            console.info('NEW incoming peer connection!')
+
+            /* Initialize the wire protocol. */
+            this.wire = new Protocol()
+
+            // NOTE We are piping to and from the protocol.
+            _socket.pipe(this.wire).pipe(_socket)
+
+            /* Request metadata, if needed. */
+            if (!this.haveMetadata) {
+                // initialize the extension
+                this.wire.use(ut_metadata())
+
+                // ask the peer to send us metadata
+                this.wire.ut_metadata.fetch()
+
+                // 'metadata' event will fire when the metadata arrives and is verified to be correct!
+                this.wire.ut_metadata.on('metadata', this._handleMetadata)
+
+                // optionally, listen to the 'warning' event if you want to know that metadata is
+                // probably not going to arrive for one of the above reasons.
+                this.wire.ut_metadata.on('warning', _err => {
+                    console.log('METADATA WARNING', _err.message)
                 })
+            }
+
+            /* Handshake. */
+            this.wire.on('handshake', (_infoHash, _peerId, _extensions) => {
+                console.info(`Handshake from ${_peerId}`)
+                // console.log('HANDSHAKE EXTENSIONS', _extensions)
+
+                /* Add new peer. */
+                this._addPeer(_peerId, _extensions)
+
+                /* Send the peer our handshake as well. */
+                this.wire.handshake(this.infoHash, this.peerId, { dht: true })
             })
 
-            /* Start listening. */
-            // server.listen(_constants.ZEROPEN_DHT_PORT)
+            this.wire.on('bitfield', _bitfield => {
+                // console.log('BITFIELD', _bitfield)
 
-            return promise
-        } catch (e) {
-            console.log('NETWORK ERROR:', e)
-        }
+                const field = new Bitfield(_bitfield.buffer)
+                // console.log('BITFILED BUFFER', field.buffer)
+            })
+
+            this.wire.on('have', _blockIndex => {
+                // console.log('HAVE', _blockIndex, this.wire.peerInterested, this.wire.amInterested)
+
+                if (this.wire.peerPieces.get(this.blockIndex)) {
+                    /* Announce our interest in this block. */
+                    console.log(`Announcing our interest in block #${this.blockIndex}`)
+                    this.wire.have(this.blockIndex)
+                }
+            })
+
+            this.wire.on('request', (_blockIndex, _offset, _length, _callback) => {
+                console.log('OH NO! A PEER HAS REQUESTED BLOCK', _blockIndex)
+                // ... read chunk ...
+                // callback(null, chunk) // respond back to the peer
+                _callback(null)
+            })
+
+            this.wire.on('interested', () => {
+                console.log('peer is now interested');
+            })
+
+            this.wire.on('uninterested', () => {
+                console.log('peer is no longer interested');
+            })
+
+            this.wire.on('port', _dhtPort => {
+                // peer has sent a port to us
+                // console.log('DHT PORT', _dhtPort)
+            })
+
+            this.wire.on('keep-alive', () => {
+                console.log('KEEP ALIVE')
+                // peer sent a keep alive - just ignore it
+            })
+
+            this.wire.on('choke', () => {
+                console.log('NOW BEING CHOKED! ' + this.wire.peerChoking);
+                // the peer is now choking us
+            })
+
+            this.wire.on('unchoke', () => {
+                if (this.haveDataSource) {
+                    // FIXME Should we send a cancel (for our request)?
+                    return '\n\nOH THANKS! BUT WE GOT THAT COVERED ALREADY!'
+                }
+
+                console.log('\n\n*** PEER is no longer choking us: ' + this.wire.peerChoking)
+
+                if (this.wire.peerPieces.get(this.blockIndex)) {
+                    console.log('AND THEY HAVE THE BLOCK THAT WE NEED!')
+                } else {
+                    console.log('OH NO! THEY DONT HAVE THE BLOCK WE NEED')
+                }
+
+                if (this.chunkIndex < this.numBlockChunks) {
+                    const offset = (this.chunkIndex * Piece.BLOCK_LENGTH)
+                    const length = Piece.BLOCK_LENGTH
+
+                    console.log(`Making chunk request [ ${this.blockIndex}, ${this.chunkIndex} ] [ ${offset}, ${length} ]`)
+
+                    /* Request a new chunk. */
+                    this._requestChunk(this.blockIndex, this.chunkIndex, offset, length)
+                }
+            })
+        })
+
+        /* Start listening. */
+        // server.listen(_constants.ZEROPEN_DHT_PORT)
+
+        return promise
     }
 
     /**
