@@ -7,6 +7,7 @@ const _constants = require('./_constants')
 const _handshake = require('./_handshake')
 const _utils = require('./_utils')
 
+
 /**
  * Class: Peer0
  */
@@ -143,11 +144,11 @@ class Peer0 {
         this._reject = _reject
     }
 
-    getRequestId(_reqId) {
+    _getRequestId(_reqId) {
         return this._requests[_reqId]
     }
 
-    addRequest(_request) {
+    _addRequest(_request) {
         /* Initialize request id (auto-increment). */
         const reqId = this.reqId++
 
@@ -158,7 +159,7 @@ class Peer0 {
         return reqId
     }
 
-    ping() {
+    _ping() {
         console.log('Starting ping')
 
         const cmd = 'ping'
@@ -200,7 +201,7 @@ class Peer0 {
         const request = { cmd, site, innerPath, location }
 
         /* Add the request to the pool and receive a new request id. */
-        const req_id = this.addRequest(request)
+        const req_id = this._addRequest(request)
 
         const inner_path = innerPath
 
@@ -239,7 +240,7 @@ class Peer0 {
             const cmd = 'handshake'
             const request = { cmd }
 
-            const reqId = this.addRequest(request)
+            const reqId = this._addRequest(request)
 
             /* Initialize handshake. */
             const handshake = _handshake(this.ip, this.port, this.id, reqId)
@@ -302,7 +303,7 @@ class Peer0 {
             if (data.overload && data.location) {
                 // console.log('CONTINUE WITH DATA REQUEST', _utils.innerPath, data.location)
                 /* Continue with data request. */
-                _requestFile(peer, data.location)
+                requestFile(self.innerPath, data.location)
             }
         })
 
@@ -461,7 +462,7 @@ class Peer0 {
                 // console.log('Decoded reqId', reqId)
 
                 /* Retrieve the request. */
-                request = this.getRequestId(reqId)
+                request = this._getRequestId(reqId)
                 // console.log('Decoded request', request)
             }
 

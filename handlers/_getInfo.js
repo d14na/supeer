@@ -195,6 +195,7 @@ const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
         filtered.unshift('185.142.236.207:10443')
 
         console.log(`Requesting 'content.json' from ${destination} via ${filtered[0]}`);
+
         config = await _requestConfig(filtered[0], destination)
             .catch((err) => {
                 console.error(`Oops! Looks like ${destination} was a dud, try again...`)
@@ -214,7 +215,7 @@ const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
         pkg = { peers: filtered, config, success }
 
         /* Emit message. */
-        _server.zeroevt.emit('response', _requestId, pkg)
+        _zeroEvent.emit('response', _conn, _requestId, pkg)
     } else if (infoHash) {
         /* Create new torrent manager. */
         const torrentMgr = new Torrent(_pex, _requestId, infoHash)

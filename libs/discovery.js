@@ -1,4 +1,14 @@
-'use strict'
+/*******************************************************************************
+ *
+ * IMPORTANT NOTICE
+ * ----------------
+ *
+ * BITTORRENT TRACKER DISCOVERY IS DEPRECATED
+ *
+ * IN THE FUTURE ALL DISCOVERY WILL BE MANAGED BY
+ * DISTRUBTED HASH TABLES (DHT) AND PEER EXCHANGE (PEX)
+ */
+
 
 const Tracker = require('bittorrent-tracker')
 const DHT = require('bittorrent-dht')
@@ -6,6 +16,7 @@ const DHT = require('bittorrent-dht')
 const _constants = require('./_constants')
 const _handshake = require('./_handshake')
 const _utils = require('./_utils')
+
 
 /**
  * Class: Discovery
