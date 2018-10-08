@@ -30,6 +30,9 @@ let dht = null
 /* Initialize PEX holder. */
 let pex = null
 
+/* Initialize connections manager. */
+const connMgr = {}
+
 /* Create ZeroEvent class. */
 class ZeroEvent extends EventEmitter {}
 
@@ -50,18 +53,21 @@ const _handleError = function (_err) {
 }
 
 /**
- * Handle client socket (connection) closure.
+ * Add Connection to Manager
  */
-const _handleClose = function () {
-    console.log('Client connection was closed.')
+const _addConnection = (_conn) => {
+    /* Add connection to manager. */
+    connMgr[_conn.id] = _conn
 
-    /* Remove ALL Zer0PEN listeners. */
-    this.zeroevt.removeAllListeners('addPeer')
-    this.zeroevt.removeAllListeners('error')
-    this.zeroevt.removeAllListeners('info')
-    this.zeroevt.removeAllListeners('msg')
-    this.zeroevt.removeAllListeners('response')
-    this.zeroevt.removeAllListeners('socket')
+    // console.log('_addConnection', connMgr)
+}
+
+/**
+ * Remove Connection from Manager
+ */
+const _removeConnection = (_connId) => {
+    /* Remove this connection entry. */
+    delete connMgr[_connId]
 }
 
 /**
@@ -70,7 +76,7 @@ const _handleClose = function () {
  * NOTE We verify that our connection state is READY_STATE(1),
  *      before sending messages through.
  */
-const _sendMessage = function (_conn, _msg) {
+const _sendMessage = (_conn, _msg) => {
     /* Stringify the message (object). */
     const msg = JSON.stringify(_msg)
 
@@ -84,6 +90,53 @@ const _sendMessage = function (_conn, _msg) {
     } else {
         console.error(`Invalid ready state [ ${readyState} ]`, _conn)
     }
+}
+
+/**
+ * Zer0PEN Listener: Error Handler
+ *
+ * NOTE These are INTERNAL errors that will be logged and
+ *      handled by/within the network, and NOT sent to the client.
+ */
+zeroEvent.on('error', function (_err) {
+    console.error('Oops! ZeroEvent emitter had an error', _err)
+})
+
+/**
+ * Zer0PEN Listener: Message
+ *
+ * NOTE These are UNREQUESTED messages originating from Zer0PEN.
+ *      e.g. notifications, network alerts, etc.
+ */
+zeroEvent.on('msg', function (_conn, _msg) {
+    /* Send message. */
+    _sendMessage(_conn, msg)
+})
+
+/**
+ * Zer0PEN Listener: Message Response
+ *
+ * NOTE Includes the REQUEST ID sent from the client.
+ */
+zeroEvent.on('response', (_conn, _requestId, _msg) => {
+    /* Set request id. */
+    const requestId = _requestId
+
+    /* Add request id to the message. */
+    _msg = { requestId, ..._msg }
+
+    /* Send message. */
+    _sendMessage(_conn, _msg)
+})
+
+/**
+ * Handle client socket (connection) closure.
+ */
+const _handleClose = function () {
+    console.log('Client connection was closed.')
+
+    /* Remove this client from the connection manager. */
+    _removeConnection(this.id)
 }
 
 /**
@@ -112,46 +165,10 @@ const _initWebSocketServer = () => {
             `0PEN server is listening on [TCP][ ${_constants.LOCALHOST}:${_constants.ZEROPEN_PORT} ] (via Nginx proxy)`)
     })
 
-    ws.on('connection', function (_conn) {
-        /* Initialize ZeroEvent emitter. */
-        _conn.zeroevt = zeroEvent
-
-        /**
-         * Zer0PEN Listener: Error Handler
-         *
-         * NOTE These are INTERNAL errors that will be logged and
-         *      handled by/within the network, and NOT sent to the client.
-         */
-        _conn.zeroevt.on('error', function (_err) {
-            console.error('Oops! ZeroEvent emitter had an error', _err)
-        })
-
-        /**
-         * Zer0PEN Listener: Message
-         *
-         * NOTE These are UNREQUESTED messages originating from Zer0PEN.
-         *      e.g. notifications, network alerts, etc.
-         */
-        _conn.zeroevt.on('msg', function (_msg) {
-            /* Send message. */
-            _sendMessage(_conn, msg)
-        })
-
-        /**
-         * Zer0PEN Listener: Message Response
-         *
-         * NOTE Includes the REQUEST ID sent from the client.
-         */
-        _conn.zeroevt.on('response', function (_requestId, _msg) {
-            /* Set request id. */
-            const requestId = _requestId
-
-            /* Add request id to the message. */
-            _msg = { requestId, ..._msg }
-
-            /* Send message. */
-            _sendMessage(_conn, _msg)
-        })
+    /* Handle new client connection. */
+    ws.on('connection', (_conn) => {
+        /* Add new connection to manager. */
+        _addConnection(_conn)
 
         /* Initialize error listener. */
         _conn.on('error', _handleError)
@@ -160,8 +177,9 @@ const _initWebSocketServer = () => {
         _conn.on('close', _handleClose)
 
         /* Initialize data (message) listener. */
-        _conn.on('data', (_msg) => {
-            _handleIncomingWsData(_conn, pex, _msg)
+        _conn.on('data', (_data) => {
+            _handleIncomingWsData(_conn, zeroEvent, _data)
+            // _handleIncomingWsData(_conn, pex, _msg)
         })
 
         /* Retrieve connection headers. */
@@ -186,20 +204,15 @@ const _initWebSocketServer = () => {
         /* Retrieve the language. */
         const lang = headers['accept-language']
 
-        /* Add source to conn (for authentication). */
-        _conn.source = `${hostIp}:${hostPort}`
+        /* Set address. */
+        const address = `${hostIp}:${hostPort}`
 
-        if (DEBUG) {
-            console.info(`
-Protocol: ${protocol}
-Source: ${hostIp}:${hostPort}
-Language: ${lang}
-User Agent: ${userAgent}
-            `)
-        }
+        /* Add client profile to conn (for authentication). */
+        _conn.profile = { address, protocol, lang, userAgent }
     })
 
     /* Start listening (for incoming CLIENT connections). */
+    // NOTE Localhost proxy via Nginx (providing TLS/SSL).
     server.listen(_constants.ZEROPEN_PORT, _constants.LOCALHOST)
 }
 
@@ -219,11 +232,6 @@ const _initDhtServer = () => {
     dht = new DHT()
     // dht = new DHT(dhtOptions)
 
-    /* Initialize ZeroEvent emitter. */
-    dht.zeroevt = zeroEvent
-
-    // TODO Add dht.zeroevt listeners
-
     dht.on('error', (_err) => {
         console.error('DHT fatal error', _err)
     })
@@ -236,7 +244,7 @@ const _initDhtServer = () => {
             `Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
 
         /* Emit peer details for info hash. */
-        pex.zeroevt.emit('addPeer', _peer, _infoHash, _from)
+        zeroEvent.emit('addPeer', _peer, _infoHash, _from)
     })
 
     /* Start listening on UDP for DHT requests. */
@@ -258,11 +266,6 @@ const _initPexServer = () => {
     /* Create new PEX server. */
     pex = net.createServer()
 
-    /* Initialize ZeroEvent emitter. */
-    pex.zeroevt = zeroEvent
-
-    // TODO Add pex.zeroevt listeners
-
     /* Add error listener. */
     pex.on('error', function (_err) {
         console.error('Oops! PEX server had an error', _err)
@@ -273,7 +276,7 @@ const _initPexServer = () => {
         console.info('NEW incoming PEX connection.')
 
         /* Emit socket for new PEX connection. */
-        pex.zeroevt.emit('socket', _socket)
+        zeroEvent.emit('socket', _socket)
     })
 
     /* Add startup listener. */

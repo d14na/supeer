@@ -115,7 +115,7 @@ const _dotBitToPk = function (_name) {
 /**
  * Information Request Handler
  */
-const _handler = async function (_server, _pex, _requestId, _data) {
+const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
     /* Initialize success. */
     let success = null
 
@@ -152,16 +152,11 @@ const _handler = async function (_server, _pex, _requestId, _data) {
 
     /* Validate destination OR info hash. */
     if (!destination && !infoHash) {
-        // return console.log(`Could NOT validate destination [ ${destination} ]`)
-
         /* Initialize search handler. */
         const search = require('./_search')
 
         /* Handle request. */
-        search(_server, _requestId, _data.query)
-
-        /* Return package. */
-        // return pkg
+        search(_conn, _zeroEvent, _requestId, _data.query)
     }
 
     /* Handle query. */

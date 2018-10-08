@@ -1,6 +1,6 @@
-const _handler = function (_server, _requestId) {
+const _handler = function (_conn, _zeroEvent, _requestId) {
     /* Retrieve the client's connection source (identity). */
-    const identity = _server.source
+    const identity = _conn.profile.address
 
     console.info(`Client's identity is [ ${identity} ]`)
 
@@ -11,7 +11,7 @@ const _handler = function (_server, _requestId) {
     const msg = { identity, success }
 
     /* Emit message. */
-    _server.zeroevt.emit('response', _requestId, msg)
+    _zeroEvent.emit('response', _conn, _requestId, msg)
 }
 
 module.exports = _handler

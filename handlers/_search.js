@@ -1,4 +1,4 @@
-const _handler = async function (_conn, _requestId, _query) {
+const _handler = async function (_conn, _zeroEvent, _requestId, _query) {
     console.log('Lets try to find something to do with', _query)
 
     /* Initialize result. */
@@ -32,7 +32,7 @@ const _handler = async function (_conn, _requestId, _query) {
     pkg = { search, result, error, success }
 
     /* Emit message. */
-    _conn.zeroevt.emit('response', _requestId, pkg)
+    _zeroEvent.emit('response', _conn, _requestId, pkg)
 }
 
 function getLorem() {

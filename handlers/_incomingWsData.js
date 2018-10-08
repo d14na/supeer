@@ -7,7 +7,7 @@ const whoAmI = require('./_whoAmI')
 /**
  * Handle Incoming WebSocket Data
  */
-const _handler = function (_server, _pex, _data) {
+const _handler = function (_conn, _zeroEvent, _data) {
     // console.log('RECEIVED DATA', _data)
 
     /* Initialize data holder. */
@@ -19,12 +19,11 @@ const _handler = function (_server, _pex, _data) {
         data = JSON.parse(_data)
         // console.log('PARSED DATA', data)
     } catch (_err) {
-        return _handleError(_err)
+        return console.log('Error parsing incoming data', _data)
     }
 
     /* Initialize data holders. */
     let action = null
-    let pkg = null
     let requestId = null
 
     /* Validate data and action. */
@@ -44,24 +43,16 @@ const _handler = function (_server, _pex, _data) {
     switch (action.toUpperCase()) {
     case 'AUTH':
         /* Handle request. */
-        // return auth(_server, requestId, data)
-
-        /* Send response. */
-        // return _respond(_server, action, pkg)
+        return auth(_conn, _zeroEvent, requestId, data)
     case 'GETFILE':
-        /* Initialize handler. */
-
         /* Handle request. */
-        // pkg = await getFile(data)
-
-        /* Send response. */
-        return _respond(_server, action, pkg)
+        return getFile(_conn, _zeroEvent, requestId, data)
     case 'GETINFO':
         /* Handle request. */
-        return getInfo(_server, _pex, requestId, data)
+        return getInfo(_conn, _zeroEvent, requestId, data)
     case 'WHOAMI':
         /* Handle request. */
-        return whoAmI(_server, requestId)
+        return whoAmI(_conn, _zeroEvent, requestId)
     default:
         console.log(`Nothing to do here with [ ${action} ]`)
     }
