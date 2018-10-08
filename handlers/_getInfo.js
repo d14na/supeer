@@ -37,25 +37,6 @@ const _requestConfig = function (_peer, _destination) {
 }
 
 /**
- * Torrent Information Request Handler
- */
-const _requestInfo = function (_infoHash) {
-    return new Promise(async (_resolve, _reject) => {
-        /* Create new Torrent manager. */
-        const torrent = new Torrent(null, _infoHash)
-
-        /* Initialize a new Torrent (DHT discovery). */
-        const init = await torrent.init()
-            .catch((_err) => {
-                console.error('What happened with Torrent Initialization??')
-                _reject(_err)
-            })
-
-        _resolve(init)
-    })
-}
-
-/**
  * Dot Bit Name Detection
  *
  * FIXME Improve validation.
@@ -111,7 +92,7 @@ const _isInfoHash = function (_val) {
  * Retrieve dotBit Public Key
  */
 const _dotBitToPk = function (_name) {
-    console.log(`Looking up public key for [ ${_name} ]`)
+    // console.log(`Looking up public key for [ ${_name} ]`)
 
     /* Initialize public key. */
     let publicKey = null
@@ -125,7 +106,7 @@ const _dotBitToPk = function (_name) {
     /* Search for the public key. */
     publicKey = dotBitNames[_name.toLowerCase()]
 
-    console.log(`Public key is [ ${publicKey} ]`)
+    // console.log(`Public key is [ ${publicKey} ]`)
 
     /* Return public key. */
     return publicKey
@@ -134,7 +115,7 @@ const _dotBitToPk = function (_name) {
 /**
  * Information Request Handler
  */
-const _handler = async function (_data) {
+const _handler = async function (_server, _pex, _requestId, _data) {
     /* Initialize success. */
     let success = null
 
@@ -177,10 +158,10 @@ const _handler = async function (_data) {
         const search = require('./_search')
 
         /* Handle request. */
-        pkg = await search(_data.query)
+        search(_server, _requestId, _data.query)
 
         /* Return package. */
-        return pkg
+        // return pkg
     }
 
     /* Handle query. */
@@ -236,35 +217,22 @@ const _handler = async function (_data) {
 
         /* Build package. */
         pkg = { peers: filtered, config, success }
+
+        /* Emit message. */
+        _server.zeropen.emit('response', _requestId, pkg)
     } else if (infoHash) {
-        /* Initialize BitTorrent handler. */
-        // const torrent = require('./_torrent')
+        /* Create new torrent manager. */
+        const torrentMgr = new Torrent(_pex, _requestId, infoHash)
+
+        /* Initialize torrent manager. */
+        torrentMgr.init()
 
         /* Initialize info. */
-        let config = null
+        // let config = null
 
         /* Request torrent info from DHT nodes and peers. */
-        info = await _requestInfo(infoHash)
-            .catch((err) => {
-                console.error(`Oops! Looks like ${null} was a dud, try again...`)
-            })
-
-        // console.log('THIS IS THE INFO WE GOT BACK', info)
-
-        /* Add info hash to response. */
-        info = {
-            infoHash,
-            ...info
-        }
-
-        /* Build package. */
-        pkg = { info, success }
-
-        /* Handle request. */
-        // pkg = await torrent(infoHash)
+        // _requestInfo(_pex, _requestId, infoHash)
     }
-
-    return pkg
 }
 
 module.exports = _handler

@@ -262,10 +262,6 @@ class Peer0 {
             console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
         })
 
-        this.conn.on('end', () => {
-            console.log('*** ARE YOU SURE THIS IS NOT WORKING??? ***')
-        })
-
         /* Handle incoming data. */
         this.conn.on('data', async function (_data) {
             // console.log('INCOMING DATA', _data)

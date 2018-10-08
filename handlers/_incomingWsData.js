@@ -1,35 +1,14 @@
-/**
- * Send Response
- *
- * NOTE We verify our connection status before sending.
- */
-const _respond = function (_conn, _action, _msg) {
-    /* Add action to response. */
-    _msg = {
-        action: _action,
-        ..._msg
-    }
-
-    /* Stringify the message package. */
-    const msg = JSON.stringify(_msg)
-
-    /* Retrieve the ready state. */
-    const readyState = _conn['_session']['readyState']
-
-    /* Verify connection state. */
-    if (readyState === 1) {
-        /* Send message. */
-        _conn.write(msg)
-    } else {
-        console.error(`Invalid ready state [ ${readyState} ]`)
-    }
-}
+/* Initialize local handlers. */
+const auth = require('./_auth')
+const getFile = require('./_getFile')
+const getInfo = require('./_getInfo')
+const whoAmI = require('./_whoAmI')
 
 /**
  * Handle Incoming WebSocket Data
  */
-const _handler = async function (_conn, _data) {
-// console.log('RECEIVED DATA', _data)
+const _handler = function (_server, _pex, _data) {
+    // console.log('RECEIVED DATA', _data)
 
     /* Initialize data holder. */
     let data = null
@@ -46,12 +25,17 @@ const _handler = async function (_conn, _data) {
     /* Initialize data holders. */
     let action = null
     let pkg = null
+    let requestId = null
 
     /* Validate data and action. */
-    if (data && data.action) {
-        /* Retrieve the action (convert to uppercase). */
+    if (data && data.action && data.requestId) {
+        /* Retrieve the action. */
         action = data.action
-        console.log(`User requested [ ${action} ]`)
+
+        /* Retrieve the request id. */
+        requestId = data.requestId
+
+        console.log(`Client's [ #${requestId} ] request is [ ${action} ]`)
     } else {
         return console.error('No action was received.')
     }
@@ -59,41 +43,25 @@ const _handler = async function (_conn, _data) {
     /* Handle actions (case-insesitive). */
     switch (action.toUpperCase()) {
     case 'AUTH':
-        /* Initialize handler. */
-        const auth = require('./_auth')
-
         /* Handle request. */
-        pkg = await auth(_conn, data)
+        // return auth(_server, requestId, data)
 
         /* Send response. */
-        return _respond(_conn, action, pkg)
+        // return _respond(_server, action, pkg)
     case 'GETFILE':
         /* Initialize handler. */
-        const getFile = require('./_getFile')
 
         /* Handle request. */
-        pkg = await getFile(data)
+        // pkg = await getFile(data)
 
         /* Send response. */
-        return _respond(_conn, action, pkg)
+        return _respond(_server, action, pkg)
     case 'GETINFO':
-        /* Initialize handler. */
-        const getInfo = require('./_getInfo')
-
         /* Handle request. */
-        pkg = await getInfo(data)
-
-        /* Send response. */
-        return _respond(_conn, action, pkg)
+        return getInfo(_server, _pex, requestId, data)
     case 'WHOAMI':
-        /* Initialize handler. */
-        const whoAmI = require('./_whoAmI')
-
         /* Handle request. */
-        pkg = await whoAmI(_conn)
-
-        /* Send response. */
-        return _respond(_conn, action, pkg)
+        return whoAmI(_server, requestId)
     default:
         console.log(`Nothing to do here with [ ${action} ]`)
     }

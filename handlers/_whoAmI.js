@@ -1,15 +1,17 @@
-const _handler = async function (_conn) {
-    /* Retrieve the connection source (identity). */
-    const identity = _conn.source
-    console.info(`User requested their identity [ ${identity} ]`)
+const _handler = function (_server, _requestId) {
+    /* Retrieve the client's connection source (identity). */
+    const identity = _server.source
 
-    /* Build package. */
-    pkg = {
-        identity,
-        success: true
-    }
+    console.info(`Client's identity is [ ${identity} ]`)
 
-    return pkg
+    /* Set success flag. */
+    const success = true
+
+    /* Build message. */
+    const msg = { identity, success }
+
+    /* Emit message. */
+    _server.zeropen.emit('response', _requestId, msg)
 }
 
 module.exports = _handler
