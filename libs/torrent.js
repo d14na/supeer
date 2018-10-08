@@ -208,7 +208,7 @@ class Torrent {
         /**
          * Info Hash Request
          */
-        this.pex.zeropen.on('info', (_dht, _infoHash) => {
+        this.pex.zeroevt.on('info', (_dht, _infoHash) => {
             console.info(
                 `Now requesting peers for [ ${Buffer.from(this.infoHash).toString('hex')} ]`)
 
@@ -280,7 +280,7 @@ class Torrent {
                 const msg = { info, success }
 
                 /* Emit message. */
-                this.pex.zeropen.emit('response', this.requestId, msg)
+                this.pex.zeroevt.emit('response', this.requestId, msg)
 
                 console.log(`DHT is announcing [ ${infoHash} ]`)
 
@@ -294,12 +294,12 @@ class Torrent {
             })
 
             /* Add error listener. */
-            this.pex.zeropen.on('error', function (_err) {
+            this.pex.zeroevt.on('error', function (_err) {
                 console.error('Oops! Zer0PEN handler had an error', _err)
             })
 
             /* Start listening on new PEX server. */
-            this.pex.zeropen.on('socket', (_socket) => {
+            this.pex.zeroevt.on('socket', (_socket) => {
                 // console.info('NEW incoming peer connection!')
 
                 /* Initialize the wire protocol. */
@@ -461,7 +461,7 @@ class Torrent {
         // this.resolve()
 
         /* Emit message. */
-        this.pex.zeropen.emit('response', this.requestId, msg)
+        this.pex.zeroevt.emit('response', this.requestId, msg)
 
         // Note: the event will not fire if the peer does not support ut_metadata, if they
         // don't have metadata yet either, if they repeatedly send invalid data, or if they

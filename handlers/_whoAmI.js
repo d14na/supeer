@@ -11,7 +11,7 @@ const _handler = function (_server, _requestId) {
     const msg = { identity, success }
 
     /* Emit message. */
-    _server.zeropen.emit('response', _requestId, msg)
+    _server.zeroevt.emit('response', _requestId, msg)
 }
 
 module.exports = _handler

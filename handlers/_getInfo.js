@@ -219,7 +219,7 @@ const _handler = async function (_server, _pex, _requestId, _data) {
         pkg = { peers: filtered, config, success }
 
         /* Emit message. */
-        _server.zeropen.emit('response', _requestId, pkg)
+        _server.zeroevt.emit('response', _requestId, pkg)
     } else if (infoHash) {
         /* Create new torrent manager. */
         const torrentMgr = new Torrent(_pex, _requestId, infoHash)

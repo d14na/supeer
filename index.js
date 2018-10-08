@@ -5,8 +5,8 @@ const EventEmitter = require('events')
 const http = require('http')
 const ip = require('ip')
 const net = require('net')
-const sockjs = require('sockjs')
 const PouchDB = require('pouchdb')
+const sockjs = require('sockjs')
 
 /* Initialize local libraries. */
 const _constants = require('./libs/_constants')
@@ -18,44 +18,50 @@ const _handleIncomingWsData = require('./handlers/_incomingWsData')
 /* Initialize new database cache. */
 const cache = new PouchDB('cache')
 
-/* Initialize global constants. */
-const DEBUG = false
-
-/* Create ZeroEmitter class. */
-class ZeroEmitter extends EventEmitter {}
-
-/* Initialize new ZeroEmitter. */
-const zeroEmitter = new ZeroEmitter()
-
 /* Initialize HTTP (WebSocket) holder. */
 let server = null
 
 /* Initialize SockJS (WebSocket) holder. */
 let ws = null
 
-/* Initialize PEX holder. */
-let pex = null
-
 /* Initialize DHT holder. */
 let dht = null
 
+/* Initialize PEX holder. */
+let pex = null
+
+/* Create ZeroEvent class. */
+class ZeroEvent extends EventEmitter {}
+
+/* Initialize new ZeroEvent. */
+const zeroEvent = new ZeroEvent()
+
+/* Initialize global constants. */
+const DEBUG = false
+
 /**
- * Handle socket (connection) errors.
+ * Handle client socket (connection) errors.
+ *
+ * NOTE These errors are handled internally by the system
+ *      and NOT presented to the client.
  */
 const _handleError = function (_err) {
-    console.log('Oops! An error occured:', _err)
+    console.log('Client connection error occured:', _err)
 }
 
 /**
- * Handle socket (connection) closure.
+ * Handle client socket (connection) closure.
  */
 const _handleClose = function () {
     console.log('Client connection was closed.')
 
-    /* Remove Zer0PEN listeners. */
-    this.zeropen.removeAllListeners('error')
-    this.zeropen.removeAllListeners('msg')
-    this.zeropen.removeAllListeners('response')
+    /* Remove ALL Zer0PEN listeners. */
+    this.zeroevt.removeAllListeners('addPeer')
+    this.zeroevt.removeAllListeners('error')
+    this.zeroevt.removeAllListeners('info')
+    this.zeroevt.removeAllListeners('msg')
+    this.zeroevt.removeAllListeners('response')
+    this.zeroevt.removeAllListeners('socket')
 }
 
 /**
@@ -107,8 +113,8 @@ const _initWebSocketServer = () => {
     })
 
     ws.on('connection', function (_conn) {
-        /* Initialize Zer0PEN event emitter. */
-        _conn.zeropen = zeroEmitter
+        /* Initialize ZeroEvent emitter. */
+        _conn.zeroevt = zeroEvent
 
         /**
          * Zer0PEN Listener: Error Handler
@@ -116,8 +122,8 @@ const _initWebSocketServer = () => {
          * NOTE These are INTERNAL errors that will be logged and
          *      handled by/within the network, and NOT sent to the client.
          */
-        _conn.zeropen.on('error', function (_err) {
-            console.error('Oops! Zer0PEN event emitter had an error', _err)
+        _conn.zeroevt.on('error', function (_err) {
+            console.error('Oops! ZeroEvent emitter had an error', _err)
         })
 
         /**
@@ -126,7 +132,7 @@ const _initWebSocketServer = () => {
          * NOTE These are UNREQUESTED messages originating from Zer0PEN.
          *      e.g. notifications, network alerts, etc.
          */
-        _conn.zeropen.on('msg', function (_msg) {
+        _conn.zeroevt.on('msg', function (_msg) {
             /* Send message. */
             _sendMessage(_conn, msg)
         })
@@ -136,7 +142,7 @@ const _initWebSocketServer = () => {
          *
          * NOTE Includes the REQUEST ID sent from the client.
          */
-        _conn.zeropen.on('response', function (_requestId, _msg) {
+        _conn.zeroevt.on('response', function (_requestId, _msg) {
             /* Set request id. */
             const requestId = _requestId
 
@@ -198,38 +204,8 @@ User Agent: ${userAgent}
 }
 
 /**
- * Initailize Peer Exchange (PEX) Server
+ * Initailize Distributed Hash Table (DHT) Server
  */
-const _initPexServer = () => {
-    /* Create new PEX server. */
-    pex = net.createServer()
-
-    /* Initialize Zer0PEN event emitter. */
-    pex.zeropen = zeroEmitter
-
-    /* Add error listener. */
-    pex.on('error', function (_err) {
-        console.error('Oops! PEX server had an error', _err)
-    })
-
-    /* Add connection listener. */
-    pex.on('connection', function (_socket) {
-        console.info('NEW incoming PEX connection.')
-
-        /* Emit socket for new PEX connection. */
-        pex.zeropen.emit('socket', _socket)
-    })
-
-    /* Add startup listener. */
-    pex.on('listening', () => {
-        console.info(
-            `PEX server is listening on [TCP][ ${ip.address()}:${_constants.ZEROPEN_PEX_PORT} ]`)
-    })
-
-    /* Start listening on TCP (for incoming "peer" connections). */
-    pex.listen(_constants.ZEROPEN_PEX_PORT)
-}
-
 const _initDhtServer = () => {
     /* Generate new peer id. */
     const peerId = Buffer.from(_utils.getPeerId('US'))
@@ -243,8 +219,10 @@ const _initDhtServer = () => {
     dht = new DHT()
     // dht = new DHT(dhtOptions)
 
-    /* Initialize Zer0PEN event emitter. */
-    dht.zeropen = zeroEmitter
+    /* Initialize ZeroEvent emitter. */
+    dht.zeroevt = zeroEvent
+
+    // TODO Add dht.zeroevt listeners
 
     dht.on('error', (_err) => {
         console.error('DHT fatal error', _err)
@@ -258,12 +236,13 @@ const _initDhtServer = () => {
             `Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
 
         /* Emit peer details for info hash. */
-        pex.zeropen.emit('addPeer', _peer, _infoHash, _from)
+        pex.zeroevt.emit('addPeer', _peer, _infoHash, _from)
     })
 
     /* Start listening on UDP for DHT requests. */
     dht.listen(_constants.ZEROPEN_PEX_PORT, () => {
-        console.info(`DHT server is listening on [UDP][ ${ip.address()}:${_constants.ZEROPEN_PEX_PORT} ]`)
+        console.info(
+            `DHT server is listening on [UDP][ ${ip.address()}:${_constants.ZEROPEN_PEX_PORT} ]`)
     })
 
     /* DHT routing table is ready. */
@@ -272,11 +251,46 @@ const _initDhtServer = () => {
     })
 }
 
+/**
+ * Initailize Peer Exchange (PEX) Server
+ */
+const _initPexServer = () => {
+    /* Create new PEX server. */
+    pex = net.createServer()
+
+    /* Initialize ZeroEvent emitter. */
+    pex.zeroevt = zeroEvent
+
+    // TODO Add pex.zeroevt listeners
+
+    /* Add error listener. */
+    pex.on('error', function (_err) {
+        console.error('Oops! PEX server had an error', _err)
+    })
+
+    /* Add connection listener. */
+    pex.on('connection', function (_socket) {
+        console.info('NEW incoming PEX connection.')
+
+        /* Emit socket for new PEX connection. */
+        pex.zeroevt.emit('socket', _socket)
+    })
+
+    /* Add startup listener. */
+    pex.on('listening', () => {
+        console.info(
+            `PEX server is listening on [TCP][ ${ip.address()}:${_constants.ZEROPEN_PEX_PORT} ]`)
+    })
+
+    /* Start listening on TCP (for incoming "peer" connections). */
+    pex.listen(_constants.ZEROPEN_PEX_PORT)
+}
+
 /* Initialize WebSocket (HTTP) server. */
 _initWebSocketServer()
 
-/* Initialize PEX server. */
-_initPexServer()
-
 /* Initialize DHT server. */
 _initDhtServer()
+
+/* Initialize PEX server. */
+_initPexServer()

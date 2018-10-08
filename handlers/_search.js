@@ -32,7 +32,7 @@ const _handler = async function (_conn, _requestId, _query) {
     pkg = { search, result, error, success }
 
     /* Emit message. */
-    _conn.zeropen.emit('response', _requestId, pkg)
+    _conn.zeroevt.emit('response', _requestId, pkg)
 }
 
 function getLorem() {
