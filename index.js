@@ -10,6 +10,7 @@ const sockjs = require('sockjs')
 
 /* Initialize local libraries. */
 const _constants = require('./libs/_constants')
+const Torrent = require('./libs/torrent')
 const _utils = require('./libs/_utils')
 
 /* Initialize local handlers. */
@@ -33,11 +34,17 @@ let pex = null
 /* Initialize connections manager. */
 const connMgr = {}
 
+/* Initialize requests manager. */
+const requestMgr = {}
+
 /* Create ZeroEvent class. */
 class ZeroEvent extends EventEmitter {}
 
 /* Initialize new ZeroEvent. */
 const zeroEvent = new ZeroEvent()
+
+/* Create new torrent manager. */
+const torrentMgr = new Torrent(zeroEvent)
 
 /* Initialize global constants. */
 const DEBUG = false
@@ -71,6 +78,57 @@ const _removeConnection = (_connId) => {
 }
 
 /**
+ * Add Request Details to Manager
+ *
+ * NOTE Client request details contain:
+ *          1. conn (full socket connection)
+ *          2. requestId
+ *          3. data (full request package)
+ */
+const _addRequest = (_request) => {
+    /* Validate request id. */
+    if (!_request || !_request.requestId) {
+        return console.error('Could not retrieve request id for:', _request)
+    }
+
+    /* Set request id. */
+    const requestId = _request.requestId
+
+    console.log(`Added new request id [ ${requestId} ]`)
+
+    /* Add request to manager. */
+    requestMgr[requestId] = _request
+}
+
+/**
+ * Retrieve Request Details from Manager
+ *
+ * NOTE Client request details contain:
+ *          1. conn (full socket connection)
+ *          2. requestId
+ *          3. data (full request package)
+ */
+const _getRequest = function (_requestId) {
+    /* Initialize request. */
+    let request = null
+
+    /* Validate request id. */
+    if (_requestId && requestMgr[_requestId]) {
+        /* Retrieve request from manager. */
+        request = requestMgr[_requestId]
+
+        /* Remove request from manager. */
+        // FIXME Verify that we do not need to persist this request
+        //       after retrieving and returning its details.
+        delete requestMgr[_requestId]
+    }
+
+    /* Return the request. */
+    return request
+}
+
+
+/**
  * Send Message to Client Connection
  *
  * NOTE We verify that our connection state is READY_STATE(1),
@@ -93,7 +151,7 @@ const _sendMessage = (_conn, _msg) => {
 }
 
 /**
- * Zer0PEN Listener: Error Handler
+ * ZeroEvent Listener: Error Handler
  *
  * NOTE These are INTERNAL errors that will be logged and
  *      handled by/within the network, and NOT sent to the client.
@@ -103,30 +161,79 @@ zeroEvent.on('error', function (_err) {
 })
 
 /**
- * Zer0PEN Listener: Message
+ * ZeroEvent Listener: Message
  *
- * NOTE These are UNREQUESTED messages originating from Zer0PEN.
+ * NOTE These are UNREQUESTED messages originating from ZeroEvent.
  *      e.g. notifications, network alerts, etc.
  */
-zeroEvent.on('msg', function (_conn, _msg) {
+zeroEvent.on('msg', (_msg) => {
+    // FIXME Query against authorization ids of "connected" clients
+    //       for applicable message recipients.
+
     /* Send message. */
     _sendMessage(_conn, msg)
 })
 
 /**
- * Zer0PEN Listener: Message Response
+ * ZeroEvent Listener: Message Response
  *
  * NOTE Includes the REQUEST ID sent from the client.
  */
-zeroEvent.on('response', (_conn, _requestId, _msg) => {
-    /* Set request id. */
-    const requestId = _requestId
+zeroEvent.on('response', (_requestId, _data) => {
+    /* Retrieve request. */
+    const request = _getRequest(_requestId)
 
-    /* Add request id to the message. */
-    _msg = { requestId, ..._msg }
+    /* Extract client's "original" request id. */
+    const requestId = _requestId.split(':')[1]
+
+    /* Add request id to message. */
+    const data = { requestId, ..._data }
+
+    /* Retrieve connection. */
+    const conn = request.conn
 
     /* Send message. */
-    _sendMessage(_conn, _msg)
+    _sendMessage(conn, data)
+})
+
+/**
+ * ZeroEvent Listener: Request Zite Config
+ */
+zeroEvent.on('getConfig', (_dest) => {
+    // TODO Request zite configuration file
+})
+
+/**
+ * ZeroEvent Listener: Request Zeronet File
+ *
+ * NOTE We use the FULL 32-bytes from the SHA-512 hash.
+ */
+zeroEvent.on('getFile', (_hash) => {
+    // TODO Request zeronet file
+})
+
+/**
+ * ZeroEvent Listener: Request Zeronet BIG File
+ */
+zeroEvent.on('getBigFile', (_hash) => {
+    // TODO Request zeronet BIG file
+    // NOTE We have NO idea how to do this yet???
+})
+
+/**
+ * ZeroEvent Listener: Request Torrent Info
+ */
+zeroEvent.on('getInfo', (_infoHash) => {
+    /* Retrieve torrent info. */
+    torrentMgr.getInfo(dht, _infoHash)
+})
+
+/**
+ * ZeroEvent Listener: Request Torrent Block
+ */
+zeroEvent.on('getBlock', (_infoHash, _blockNum) => {
+    /* Retrieve torrent info. */
+    torrentMgr.getBlock(_infoHash, _blockNum)
 })
 
 /**
@@ -178,8 +285,41 @@ const _initWebSocketServer = () => {
 
         /* Initialize data (message) listener. */
         _conn.on('data', (_data) => {
-            _handleIncomingWsData(_conn, zeroEvent, _data)
-            // _handleIncomingWsData(_conn, pex, _msg)
+            /* Initialize data. */
+            let data = null
+
+            /* Protect server process from FAILED parsing. */
+            try {
+                /* Parse the incoming data. */
+                data = JSON.parse(_data)
+            } catch (_err) {
+                return console.log('Error parsing incoming data', _data)
+            }
+
+            /* Set connection. */
+            const conn = _conn
+
+            /* Retrieve connection id. */
+            const connId = _conn.id
+
+            /* Validate connection id. */
+            if (!connId) {
+                return console.error('Could not retrieve connection id for:', _data)
+            }
+
+            /* Set request id. */
+            // NOTE Client connection id is prepended to make each
+            //      client's request id unique within 0PEN.
+            const requestId = `${connId}:${data.requestId}`
+
+            /* Initialize request. */
+            const request = { conn, requestId, data }
+
+            /* Add new request to manager. */
+            _addRequest(request)
+
+            /* Handle incoming data. */
+            _handleIncomingWsData(_conn, zeroEvent, requestId, data)
         })
 
         /* Retrieve connection headers. */

@@ -7,11 +7,11 @@ const _handler = function (_conn, _zeroEvent, _requestId) {
     /* Set success flag. */
     const success = true
 
-    /* Build message. */
-    const msg = { identity, success }
+    /* Build (data) message. */
+    const data = { identity, success }
 
     /* Emit message. */
-    _zeroEvent.emit('response', _conn, _requestId, msg)
+    _zeroEvent.emit('response', _requestId, data)
 }
 
 module.exports = _handler

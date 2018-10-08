@@ -1,10 +1,10 @@
+/* Initialize vendor libraries. */
 const ip = require('ip')
 
 /* Initialize local libraries. */
 const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
 const Peer0 = require('../libs/peer0')
-const Torrent = require('../libs/torrent')
 
 /* Initialize local data sources. */
 const dotBitNames = require('../data/names.json')
@@ -128,10 +128,6 @@ const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
     /* Initialize info hash. */
     let infoHash = null
 
-    /* Retrieve destination. */
-    // destination = _data.query
-    // console.log('Querying peers for destination', destination)
-
     /* Destination dotBit detectoin. */
     // NOTE Public key (Bitcoin address) validation should be first.
     if (_isMagnetLink(_data.query)) {
@@ -217,17 +213,8 @@ const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
         /* Emit message. */
         _zeroEvent.emit('response', _conn, _requestId, pkg)
     } else if (infoHash) {
-        /* Create new torrent manager. */
-        const torrentMgr = new Torrent(_pex, _requestId, infoHash)
-
-        /* Initialize torrent manager. */
-        torrentMgr.init()
-
-        /* Initialize info. */
-        // let config = null
-
-        /* Request torrent info from DHT nodes and peers. */
-        // _requestInfo(_pex, _requestId, infoHash)
+        /* Emit message. */
+        _zeroEvent.emit('getInfo', infoHash)
     }
 }
 

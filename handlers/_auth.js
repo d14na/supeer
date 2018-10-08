@@ -9,9 +9,7 @@ const web3 = new Web3()
  * Retrieves the account (address) from the supplied cryptographic
  * signature object.
  */
-const _getAccountBySig = function (_source, _signature) {
-    console.log(`Received connection source [ ${_source} ]`)
-
+const _getAccountBySig = function (_signature) {
     /* Retrieve the message. */
     const message = _signature.message
     console.log(`Received signature message [ ${message} ]`)
@@ -22,33 +20,31 @@ const _getAccountBySig = function (_source, _signature) {
 
         /* Return the account (address). */
         return account
-    } catch (e) {
-        console.error(e)
+    } catch (_err) {
+        console.error(_err)
 
         /* Return null. */
         return null
     }
 }
 
-const _handler = async function (_conn, _data) {
-    /* Retrieve the connection source. */
-    const source = _conn.source
-
+const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Retrieve the signature. */
     const signature = _data.sig
-    // console.log('Perform authorization for', signature)
+    console.log('Perform authorization for', signature)
 
     /* Retrieve account for this signature. */
-    const account = await _getAccountBySig(source, signature)
+    const account = await _getAccountBySig(signature)
     console.info(`Validation successful for [ ${account} ]`)
 
-    /* Build package. */
-    pkg = {
-        msg: `Hi ${account}!`,
-        success: true
-    }
+    /* Set success flag. */
+    const success = true
 
-    return pkg
+    /* Build message. */
+    const msg = { account, success }
+
+    /* Emit message. */
+    _zeroEvent.emit('response', _requestId, msg)
 }
 
 module.exports = _handler
