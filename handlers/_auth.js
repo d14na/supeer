@@ -40,11 +40,11 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Set success flag. */
     const success = true
 
-    /* Build message. */
-    const msg = { account, success }
+    /* Build (data) message. */
+    const data = { account, success }
 
     /* Emit message. */
-    _zeroEvent.emit('response', _requestId, msg)
+    _zeroEvent.emit('response', _requestId, data)
 }
 
 module.exports = _handler

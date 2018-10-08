@@ -94,8 +94,6 @@ const _addRequest = (_request) => {
     /* Set request id. */
     const requestId = _request.requestId
 
-    console.log(`Added new request id [ ${requestId} ]`)
-
     /* Add request to manager. */
     requestMgr[requestId] = _request
 }
@@ -183,7 +181,7 @@ zeroEvent.on('response', (_requestId, _data) => {
     /* Retrieve request. */
     const request = _getRequest(_requestId)
 
-    /* Extract client's "original" request id. */
+    /* Set client's ORIGINAL request id. */
     const requestId = _requestId.split(':')[1]
 
     /* Add request id to message. */
@@ -307,8 +305,8 @@ const _initWebSocketServer = () => {
                 return console.error('Could not retrieve connection id for:', _data)
             }
 
-            /* Set request id. */
-            // NOTE Client connection id is prepended to make each
+            /* Set UNIVERSAL request id. */
+            // NOTE Client's connection id is prepended to make each
             //      client's request id unique within 0PEN.
             const requestId = `${connId}:${data.requestId}`
 

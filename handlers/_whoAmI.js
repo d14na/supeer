@@ -1,4 +1,4 @@
-const _handler = function (_conn, _zeroEvent, _requestId) {
+const _handler = function (_zeroEvent, _conn, _requestId) {
     /* Retrieve the client's connection source (identity). */
     const identity = _conn.profile.address
 

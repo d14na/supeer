@@ -20,7 +20,7 @@ const _handler = function (_conn, _zeroEvent, _requestId, _data) {
         /* Retrieve the action. */
         action = _data.action
 
-        console.log(`Client's [ #${_requestId} ] request is [ ${action} ]`)
+        console.log(`Client request [ ${_requestId} ] is [ ${action} ]`)
     } else {
         return console.error('No action was received for:', _data)
     }
@@ -29,16 +29,16 @@ const _handler = function (_conn, _zeroEvent, _requestId, _data) {
     switch (action.toUpperCase()) {
     case 'AUTH':
         /* Handle request. */
-        return auth(_conn, _zeroEvent, _requestId, _data)
+        return auth(_zeroEvent, _requestId, _data)
     case 'GETFILE':
         /* Handle request. */
-        return getFile(_conn, _zeroEvent, _requestId, _data)
+        return getFile(_zeroEvent, _requestId, _data)
     case 'GETINFO':
         /* Handle request. */
-        return getInfo(_conn, _zeroEvent, _requestId, _data)
+        return getInfo(_zeroEvent, _requestId, _data)
     case 'WHOAMI':
         /* Handle request. */
-        return whoAmI(_conn, _zeroEvent, _requestId)
+        return whoAmI(_zeroEvent, _conn, _requestId)
     default:
         console.log(`Nothing to do here with [ ${action} ]`)
     }
