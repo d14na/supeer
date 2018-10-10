@@ -248,7 +248,15 @@ class Peer0 {
         })
 
         /* Open connection to peer. */
-        this.conn = net.createConnection(this.port, this.ip, () => {
+        this.conn = net.createConnection(this.port, this.ip)
+
+        /* Handle connection errors. */
+        this.conn.on('error', (_err) => {
+            console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
+        })
+
+        /* Initialize connection listener. */
+        this.conn.on('connection', () => {
             console.info(`Opened new connection [ ${this.ip}:${this.port} ]`)
 
             /* Set command. */
@@ -268,11 +276,6 @@ class Peer0 {
 
             /* Send package. */
             this.conn.write(pkg)
-        })
-
-        /* Handle connection errors. */
-        this.conn.on('error', (_err) => {
-            console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
         })
 
         /* Handle closed connection. */
