@@ -29,7 +29,7 @@ const _requestFile = function (_zeroEvent, _peer, _dest, _innerPath) {
 }
 
 const _handler = async function (_zeroEvent, _requestId, _data) {
-    console.log('RECEIVED GETFILE REQUEST', _data)
+    // console.log('RECEIVED GETFILE REQUEST', _data)
 
     /* Initialize data. */
     let data = null
@@ -46,78 +46,99 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Initialize success. */
     let success = null
 
-    /* Initialize peers. */
-    let peers = null
+    /* Initialize destination. */
+    let dest = null
 
-    /* Retrieve destination. */
-    const dest = data.dest
+    /* Initialize info hash. */
+    let infoHash = null
 
-    console.log('Querying peers for destination', dest)
+    /* Retrieve Zeronet destination. */
+    dest = data.dest
 
-    /* Calculate info hash. */
-    const infoHash = Buffer.from(_utils.calcInfoHash(dest), 'hex')
+    /* Retrieve Torrent info hash. */
+    infoHash = data.infoHash
 
-    /* Create new Discovery. */
-    const discovery = new Discovery(infoHash)
+    // console.log('DEST / INFO HASH', dest, infoHash)
 
-    /* Start discovery of peers. */
-    peers = await discovery.startTracker()
-    // console.log('FOUND THESE PEERS', peers)
+    /* Validate destination OR info hash. */
+    if (!dest && !infoHash) {
+        return console.error('ERROR loading destination or info hash.', _data)
+    }
 
-    /* Filter peers. */
-    const filtered = peers.filter((_peer) => {
-        /* Retrieve port. */
-        const port = parseInt(_peer.split(':')[1])
+    if (dest) {
+        /* Initialize peers. */
+        let peers = null
 
-        return port > 1
-    })
+        console.log('Querying peers for destination', dest)
 
-    /* Retrieve inner path. */
-    const innerPath = data.request
+        /* Calculate info hash. */
+        infoHash = Buffer.from(_utils.calcInfoHash(dest), 'hex')
 
-    /* Initialize body holder. */
-    let body = null
+        /* Create new Discovery. */
+        const discovery = new Discovery(infoHash)
 
-    // FOR TESTING PURPOSES ONLY
-    filtered.unshift('185.142.236.207:10443')
+        /* Start discovery of peers. */
+        peers = await discovery.startTracker()
+        // console.log('FOUND THESE PEERS', peers)
 
-    console.log(`Requesting ${innerPath} for ${dest} via ${filtered[0]}`);
+        /* Filter peers. */
+        const filtered = peers.filter((_peer) => {
+            /* Retrieve port. */
+            const port = parseInt(_peer.split(':')[1])
 
-    body = await _requestFile(_zeroEvent, filtered[0], dest, innerPath)
-        .catch((err) => {
-            console.error(`Oops! Looks like ${dest} was a dud, try again...`)
+            return port > 1
         })
 
-    /* Validate results. */
-    if (filtered && filtered.length > 0 && body) {
-        success = true
-    } else {
-        success = false
+        /* Retrieve inner path. */
+        const innerPath = data.request
+
+        /* Initialize body holder. */
+        let body = null
+
+        // FOR TESTING PURPOSES ONLY
+        filtered.unshift('185.142.236.207:10443')
+
+        console.log(`Requesting ${innerPath} for ${dest} via ${filtered[0]}`);
+
+        body = await _requestFile(_zeroEvent, filtered[0], dest, innerPath)
+            .catch((err) => {
+                console.error(`Oops! Looks like ${dest} was a dud, try again...`)
+            })
+
+        /* Validate results. */
+        if (filtered && filtered.length > 0 && body) {
+            success = true
+        } else {
+            success = false
+        }
+
+        /* Initialize file extension. */
+        let fileExt = null
+
+        if (innerPath.indexOf('.') !== -1) {
+            /* Retrieve the file extention. */
+            fileExt = innerPath.split('.').pop()
+        }
+
+        /* Decode body (if needed). */
+        switch (fileExt.toUpperCase()) {
+        case 'HTM':
+        case 'HTML':
+            body = body.toString()
+            break
+        default:
+            // NOTE Leave as buffer (for binary files).
+        }
+
+        /* Build (data) message. */
+        data = { dest, innerPath, body, success }
+
+        /* Emit message. */
+        _zeroEvent.emit('response', _requestId, data)
+    } else if (infoHash) {
+        /* Emit message. */
+        _zeroEvent.emit('getInfo', Buffer.from(infoHash, 'hex'))
     }
-
-    /* Initialize file extension. */
-    let fileExt = null
-
-    if (innerPath.indexOf('.') !== -1) {
-        /* Retrieve the file extention. */
-        fileExt = innerPath.split('.').pop()
-    }
-
-    /* Decode body (if needed). */
-    switch (fileExt.toUpperCase()) {
-    case 'HTM':
-    case 'HTML':
-        body = body.toString()
-        break
-    default:
-        // NOTE Leave as buffer (for binary files).
-    }
-
-    /* Build (data) message. */
-    data = { dest, innerPath, body, success }
-
-    /* Emit message. */
-    _zeroEvent.emit('response', _requestId, data)
 }
 
 module.exports = _handler

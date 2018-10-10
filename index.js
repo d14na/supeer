@@ -41,8 +41,8 @@ let pex = null
 /* Initialize connections manager. */
 const connMgr = {}
 
-/* Initialize data manager. */
-const dataMgr = {}
+/* Initialize data id manager. */
+const dataIdMgr = []
 
 /* Initialize requests manager. */
 const requestMgr = {}
@@ -69,8 +69,13 @@ const _handleError = (_err) => {
 const _addConnection = (_conn) => {
     /* Add connection to manager. */
     connMgr[_conn.id] = _conn
+}
 
-    // console.log('_addConnection', connMgr)
+/**
+ * Retrieve Connection from Manager
+ */
+const _getConnection = (_connId) => {
+    return connMgr[_connId]
 }
 
 /**
@@ -82,10 +87,27 @@ const _removeConnection = (_connId) => {
 }
 
 /**
+ * Add Data Id
+ */
+const _addDataId = (_dataId, _requestId) => {
+    /* Set data id. */
+    const dataId = _dataId
+
+    /* Set request id. */
+    const requestId = _requestId
+
+    /* Set date added. */
+    const dateAdded = new Date().toJSON()
+
+    /* Add entry to data id manager. */
+    dataIdMgr.push({ dataId, requestId, dateAdded })
+}
+
+/**
  * Add Request Details to Manager
  *
  * NOTE Client request details contain:
- *          1. conn (full socket connection)
+ *          1. connection id (reference to complete socket)
  *          2. requestId
  *          3. data (full request package)
  */
@@ -106,7 +128,7 @@ const _addRequest = (_request) => {
  * Retrieve Request Details from Manager
  *
  * NOTE Client request details contain:
- *          1. conn (full socket connection)
+ *          1. connection id (reference to complete socket)
  *          2. requestId
  *          3. data (full request package)
  */
@@ -129,6 +151,20 @@ const _getRequest = (_requestId) => {
     return request
 }
 
+/**
+ * Retrieve Request Id
+ */
+const _getRequestId = (_dataId) => {
+    for (let ids of dataIdMgr) {
+        if (ids.dataId === _dataId) {
+            /* Return the request id. */
+            return ids.requestId
+        }
+    }
+
+    /* Unknown data id. */
+    return null
+}
 
 /**
  * Send Message to Client Connection
@@ -182,17 +218,42 @@ zeroEvent.on('msg', (_msg) => {
  * NOTE Includes the REQUEST ID sent from the client.
  */
 zeroEvent.on('response', (_requestId, _data) => {
+    /* Initialize request id. */
+    let requestId = null
+
+    /* Validate request id. */
+    if (!_requestId) {
+        /* Retrieve data id. */
+        const dataId = _data.dataId
+
+        /* Retrieve the request id from data id manager. */
+        requestId = _getRequestId(dataId)
+
+        console.log('WE GOT NO REQUEST ID FOR RESPONSE, BUT WE HAVE', requestId, _data)
+    } else {
+        /* Set request id. */
+        requestId = _requestId
+    }
+
     /* Retrieve request. */
-    const request = _getRequest(_requestId)
+    const request = _getRequest(requestId)
+
+    /* Validate request. */
+    if (!request) {
+        return console.log('ERROR retrieving request', requestId, requestMgr)
+    }
 
     /* Set client's ORIGINAL request id. */
-    const requestId = _requestId.split(':')[1]
+    requestId = requestId.split(':')[1]
 
     /* Add request id to message. */
     const data = { requestId, ..._data }
 
-    /* Retrieve connection. */
-    const conn = request.conn
+    /* Retrieve connection id. */
+    const connId = request.connId
+
+    /* Retrieve (complete socket) connection. */
+    const conn = _getConnection(connId)
 
     /* Send message. */
     _sendMessage(conn, data)
@@ -259,16 +320,26 @@ const _initWebSocketServer = () => {
     /* Create HTTP server. */
     server = http.createServer()
 
+    /* Initialize error listener. */
+    server.on('error', (_err) => {
+        console.error('HTTP Web Server fatal error', _err)
+    })
+
     /* Initialize SockJS (fallback) URL. */
     const sockjs_url = './js/sockjs.min.js'
 
     /* Craate SockJS (WebSocket) server. */
     const ws = sockjs.createServer({ sockjs_url })
 
+    /* Initialize error listener. */
+    ws.on('error', (_err) => {
+        console.error('WebSockets fatal error', _err)
+    })
+
     /* Install WebSocket server handlers. */
     ws.installHandlers(server)
 
-    /* Add startup listener. */
+    /* Initialize startup listener. */
     server.on('listening', () => {
         console.info(
             `0PEN server is listening on [TCP][ ${_constants.LOCALHOST}:${_constants.ZEROPEN_PORT} ] (via Nginx proxy)`)
@@ -298,11 +369,11 @@ const _initWebSocketServer = () => {
                 return console.log('Error parsing incoming data', _data)
             }
 
-            /* Set connection. */
-            const conn = _conn
-
             /* Retrieve connection id. */
             const connId = _conn.id
+
+            /* Retrieve data id. */
+            const dataId = data.dataId
 
             /* Validate connection id. */
             if (!connId) {
@@ -315,10 +386,13 @@ const _initWebSocketServer = () => {
             const requestId = `${connId}:${data.requestId}`
 
             /* Initialize request. */
-            const request = { conn, requestId, data }
+            const request = { connId, requestId, data }
 
             /* Add new request to manager. */
             _addRequest(request)
+
+            /* Add new data id to manager. */
+            _addDataId(dataId, requestId)
 
             /* Handle incoming data. */
             _handleIncomingWsData(_conn, zeroEvent, requestId, data)
@@ -374,6 +448,7 @@ const _initDhtServer = () => {
     dht = new DHT()
     // dht = new DHT(dhtOptions)
 
+    /* Initialize error listener. */
     dht.on('error', (_err) => {
         console.error('DHT fatal error', _err)
     })
@@ -382,8 +457,11 @@ const _initDhtServer = () => {
     // Emitted when a peer announces itself in order to be stored in the DHT.
 
     dht.on('peer', (_peer, _infoHash, _from) => {
-        console.info(
-            `Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
+        // console.info(
+        //     `Found DHT peer [ ${_peer.host}:${_peer.port} ] from [ ${_from.address}:${_from.port} ]`)
+
+        // /* Add DHT peer. */
+        // this._addDhtPeer(`${_peer.host}:${_peer.port}`)
 
         /* Emit peer details for info hash. */
         zeroEvent.emit('addPeer', _peer, _infoHash, _from)
@@ -408,12 +486,12 @@ const _initPexServer = () => {
     /* Create new PEX server. */
     pex = net.createServer()
 
-    /* Add error listener. */
+    /* Initialize error listener. */
     pex.on('error', (_err) => {
         console.error('Oops! PEX server had an error', _err)
     })
 
-    /* Add connection listener. */
+    /* Initialize connection listener. */
     pex.on('connection', (_socket) => {
         console.info('NEW incoming PEX connection.')
 
@@ -421,7 +499,7 @@ const _initPexServer = () => {
         zeroEvent.emit('socket', _socket)
     })
 
-    /* Add startup listener. */
+    /* Initialize startup listener. */
     pex.on('listening', () => {
         console.info(
             `PEX server is listening on [TCP][ ${ip.address()}:${_constants.ZEROPEN_PEX_PORT} ]`)

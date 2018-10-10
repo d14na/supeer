@@ -1,7 +1,6 @@
 /* Initialize local handlers. */
 const auth = require('./_auth')
 const getFile = require('./_getFile')
-const getInfo = require('./_getInfo')
 const search = require('./_search')
 const whoAmI = require('./_whoAmI')
 

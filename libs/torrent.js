@@ -195,6 +195,8 @@ class Torrent {
         }
     }
 
+    // NOTE This method is currently NOT being used.
+    //      And its possible that we really DON'T need it anyway.
     _addDhtPeer(_peerAddress) {
         let foundPeer = false
 
@@ -224,10 +226,10 @@ class Torrent {
         //     metadata, Buffer.from(metadata, 'hex').toString())
 
         /* Convert the metadata to a buffer. */
-        const data = Buffer.from(_metadata, 'hex')
+        const metadata = Buffer.from(_metadata, 'hex')
 
         /* Decode the metadata buffer using bencode. */
-        const decoded = bencode.decode(data)
+        const decoded = bencode.decode(metadata)
         // console.log('DECODED (RAW)', typeof decoded, decoded)
 
         /* Retrieve the torrent info. */
@@ -241,17 +243,20 @@ class Torrent {
         /* Set success flag. */
         const success = true
 
-        /* Build info. */
-        const info = { infoHash, torrentInfo }
+        /* Set data id. */
+        const dataId = `${infoHash}:torrent`
+
+        /* Build (data) info. */
+        const data = { dataId, infoHash, torrentInfo }
 
         /* Build message. */
-        const msg = { info, success }
+        // const msg = { info, success }
 
         /* Return peer summary. */
         // this.resolve()
 
         /* Emit message. */
-        this.zeroEvent.emit('response', msg)
+        this.zeroEvent.emit('response', null, data)
 
         // Note: the event will not fire if the peer does not support ut_metadata, if they
         // don't have metadata yet either, if they repeatedly send invalid data, or if they
@@ -322,7 +327,9 @@ class Torrent {
      * Retrieve Torrent Information
      */
     getInfo(_dht, _infoHash) {
-    // getInfo(_conn, _requestId, _infoHash) {
+        // console.log('GET INFO DHT', _dht)
+        // console.log('GET INFO INFOHASH', _infoHash)
+        // getInfo(_conn, _requestId, _infoHash) {
         /* Initialize connection. */
         // this.conn = _conn
 
@@ -332,11 +339,11 @@ class Torrent {
         /* Initialize info hash. */
         this.infoHash = _infoHash
 
+        /* Initialize peer id. */
+        this.peerId = _utils.getPeerId('US')
+
         console.info(
             `Now requesting peers for [ ${Buffer.from(this.infoHash).toString('hex')} ]`)
-
-        // /* Add DHT peer. */
-        // this._addDhtPeer(`${_peer.host}:${_peer.port}`)
 
         /* Request peers with our info hash (from all available nodes). */
         _dht.lookup(this.infoHash, (_err, _nodesFound) => {
@@ -396,19 +403,18 @@ class Torrent {
             /* Set success flag. */
             const success = true
 
-            /* Build info. */
-            const info = { infoHash, topPeers, allPeers, totalPeers }
+            /* Set data id. */
+            const dataId = `${infoHash}:stats`
 
-            /* Build message. */
-            const msg = { info, success }
+            /* Build (data) info. */
+            const data = { dataId, infoHash, topPeers, allPeers, totalPeers }
 
             /* Emit message. */
-            this.zeroEvent.emit('response', msg)
+            // this.zeroEvent.emit('response', null, data)
 
             console.log(`DHT is announcing [ ${infoHash} ]`)
 
             /* Announce that we have peers seeding this info hash. */
-            // _dht.announce(this.infoHash, 6881, (_err) => {
             _dht.announce(this.infoHash, _constants.ZEROPEN_PEX_PORT, (_err) => {
                 if (_err) {
                     console.error('DHT announcement error', _err)
@@ -417,7 +423,7 @@ class Torrent {
         })
 
         /* Add error listener. */
-        this.zeroEvent.on('error', function (_err) {
+        this.zeroEvent.on('error', (_err) => {
             console.error('Oops! Zer0PEN handler had an error', _err)
         })
 
@@ -429,7 +435,7 @@ class Torrent {
             this.wire = new Protocol()
 
             /* Add error listener. */
-            this.wire.on('error', function (_err) {
+            this.wire.on('error', (_err) => {
                 console.error('Oops! Peer wire had an error', _err)
             })
 
@@ -463,12 +469,16 @@ class Torrent {
 
                 /* Add new peer. */
                 this._addPeer(_peerId, _extensions)
-                // console.log(this.wire)
+
+                // TODO Add INTERNAL tracking for connected peers.
                 // peerId: '2d5554333533532dcead15ab366f53c9235e00ad',
                 // peerIdBuffer: <Buffer 2d 55 54 33 35 33 53 2d ce ad 15 ab 36 6f 53 c9 23 5e 00 ad>,
 
+                /* Initialize DHT support flag. */
+                const dhtSupport = { dht: true }
+
                 /* Send the peer our handshake as well. */
-                this.wire.handshake(this.infoHash, this.peerId, { dht: true })
+                this.wire.handshake(this.infoHash, this.peerId, dhtSupport)
             })
 
             this.wire.on('bitfield', _bitfield => {

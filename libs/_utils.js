@@ -25,7 +25,11 @@ const getPeerId = function (_countryCode) {
         rndString += charset[Math.floor(Math.random() * charset.length)]
     }
 
-    return `${prefix}-${_countryCode}-${rndString}`
+    /* Generate peer id. */
+    const peerId = `${prefix}-${_countryCode}-${rndString}`
+
+    /* Return peer id (buffer). */
+    return Buffer.from(peerId)
 }
 
 /**
@@ -148,8 +152,21 @@ const parseData = function (_data) {
     /* Validate data id. */
     if (dataId) {
         if (dataId.indexOf(':') !== -1) {
+            /* Initialize destination. */
+            let dest = null
+
+            /* Initialize info hash. */
+            let infoHash = null
+
             /* Retrieve dest. */
-            const dest = dataId.split(':')[0]
+            const endpoint = dataId.split(':')[0]
+
+            /* Validate endpoint. */
+            if (isPublicKey(endpoint)) {
+                dest = endpoint
+            } else if (isInfoHash(endpoint)) {
+                infoHash = endpoint
+            }
 
             /* Retrieve request. */
             const request = dataId.split(':')[1]
@@ -157,7 +174,7 @@ const parseData = function (_data) {
             // console.log('PARSED DATA ID', dest, request)
 
             /* Return data. */
-            return { dest, request }
+            return { dest, infoHash, request }
         } else {
             return null
         }
