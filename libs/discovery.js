@@ -52,7 +52,7 @@ class Discovery {
                 // 'udp://tracker.leechers-paradise.org:6969/announce',
                 // 'udp://tracker.open-internet.nl:6969/announce',
                 'udp://tracker.coppersurfer.tk:6969/announce',
-                'http://tracker.swateam.org.uk:2710/announce',
+                // 'http://tracker.swateam.org.uk:2710/announce',
                 'http://open.acgnxtracker.com/announce'
             ],
             port: _constants.ZEROPEN_PORT

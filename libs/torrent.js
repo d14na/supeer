@@ -2,7 +2,7 @@ const bencode = require('bencode')
 const Bitfield = require('bitfield')
 const Piece = require('torrent-piece')
 const Protocol = require('bittorrent-protocol')
-const ut_metadata = require('ut_metadata') // eslint-disable-line camelcase
+const ut_metadata = require('ut_metadata')
 
 /* Initialize local library. */
 const _constants = require('./_constants')

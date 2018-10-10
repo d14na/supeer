@@ -1,6 +1,7 @@
 module.exports = {
     /* System */
     LOCALHOST : '127.0.0.1',
+    VERSION: '18.10.9',
 
     /* Zero Private Enterprise Network (0PEN) */
     ZEROPEN_PORT       : 10443,

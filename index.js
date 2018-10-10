@@ -10,6 +10,7 @@ const sockjs = require('sockjs')
 
 /* Initialize local libraries. */
 const _constants = require('./libs/_constants')
+const Peer0 = require('./libs/peer0')
 const Torrent = require('./libs/torrent')
 const _utils = require('./libs/_utils')
 
@@ -18,6 +19,12 @@ const _handleIncomingWsData = require('./handlers/_incomingWsData')
 
 /* Initialize new database cache. */
 const cache = new PouchDB('cache')
+
+/* Create ZeroEvent class. */
+class ZeroEvent extends EventEmitter {}
+
+/* Initialize new ZeroEvent. */
+const zeroEvent = new ZeroEvent()
 
 /* Initialize HTTP (WebSocket) holder. */
 let server = null
@@ -34,14 +41,11 @@ let pex = null
 /* Initialize connections manager. */
 const connMgr = {}
 
+/* Initialize data manager. */
+const dataMgr = {}
+
 /* Initialize requests manager. */
 const requestMgr = {}
-
-/* Create ZeroEvent class. */
-class ZeroEvent extends EventEmitter {}
-
-/* Initialize new ZeroEvent. */
-const zeroEvent = new ZeroEvent()
 
 /* Create new torrent manager. */
 const torrentMgr = new Torrent(zeroEvent)
@@ -55,7 +59,7 @@ const DEBUG = false
  * NOTE These errors are handled internally by the system
  *      and NOT presented to the client.
  */
-const _handleError = function (_err) {
+const _handleError = (_err) => {
     console.log('Client connection error occured:', _err)
 }
 
@@ -106,7 +110,7 @@ const _addRequest = (_request) => {
  *          2. requestId
  *          3. data (full request package)
  */
-const _getRequest = function (_requestId) {
+const _getRequest = (_requestId) => {
     /* Initialize request. */
     let request = null
 
@@ -154,7 +158,7 @@ const _sendMessage = (_conn, _msg) => {
  * NOTE These are INTERNAL errors that will be logged and
  *      handled by/within the network, and NOT sent to the client.
  */
-zeroEvent.on('error', function (_err) {
+zeroEvent.on('error', (_err) => {
     console.error('Oops! ZeroEvent emitter had an error', _err)
 })
 
@@ -204,7 +208,7 @@ zeroEvent.on('getConfig', (_dest) => {
 /**
  * ZeroEvent Listener: Request Zeronet File
  *
- * NOTE We use the FULL 32-bytes from the SHA-512 hash.
+ * NOTE We use the 32-bytes (partial 50%) from the SHA-512 hash.
  */
 zeroEvent.on('getFile', (_hash) => {
     // TODO Request zeronet file
@@ -237,7 +241,7 @@ zeroEvent.on('getBlock', (_infoHash, _blockNum) => {
 /**
  * Handle client socket (connection) closure.
  */
-const _handleClose = function () {
+const _handleClose = () => {
     console.log('Client connection was closed.')
 
     /* Remove this client from the connection manager. */
@@ -374,7 +378,7 @@ const _initDhtServer = () => {
         console.error('DHT fatal error', _err)
     })
 
-    // dht.on('announce', function (peer, infoHash) { ... })
+    // dht.on('announce', (peer, infoHash) => { ... })
     // Emitted when a peer announces itself in order to be stored in the DHT.
 
     dht.on('peer', (_peer, _infoHash, _from) => {
@@ -405,12 +409,12 @@ const _initPexServer = () => {
     pex = net.createServer()
 
     /* Add error listener. */
-    pex.on('error', function (_err) {
+    pex.on('error', (_err) => {
         console.error('Oops! PEX server had an error', _err)
     })
 
     /* Add connection listener. */
-    pex.on('connection', function (_socket) {
+    pex.on('connection', (_socket) => {
         console.info('NEW incoming PEX connection.')
 
         /* Emit socket for new PEX connection. */

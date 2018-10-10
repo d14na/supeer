@@ -6,9 +6,6 @@ const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
 const Peer0 = require('../libs/peer0')
 
-/* Initialize local data sources. */
-const dotBitNames = require('../data/names.json')
-
 /**
  * Zite Configuration Request Handler
  */
@@ -37,85 +34,9 @@ const _requestConfig = function (_peer, _destination) {
 }
 
 /**
- * Dot Bit Name Detection
- *
- * FIXME Improve validation.
- */
-const _isDotBit = function (_val) {
-    if (_val.slice(-4).toUpperCase() === '.BIT') {
-        return true
-    } else {
-        return false
-    }
-}
-
-/**
- * Public Key Validation
- *
- * FIXME Improve validation.
- */
-const _isPublicKey = function (_val) {
-    if (_val.slice(0, 1) === '1' && (_val.length === 33 || _val.length === 34)) {
-        return true
-    } else {
-        return false
-    }
-}
-
-/**
- * Magnet Link Validation
- *
- * FIXME Improve validation.
- */
-const _isMagnetLink = function (_val) {
-    if (_val.slice(0, 20) === 'magnet:?xt=urn:btih:') {
-        return true
-    } else {
-        return false
-    }
-}
-
-/**
- * Info Hash Validation
- *
- * FIXME Improve validation.
- */
-const _isInfoHash = function (_val) {
-    if (_val.length === 40) {
-        return true
-    } else {
-        return false
-    }
-}
-
-/**
- * Retrieve dotBit Public Key
- */
-const _dotBitToPk = function (_name) {
-    // console.log(`Looking up public key for [ ${_name} ]`)
-
-    /* Initialize public key. */
-    let publicKey = null
-
-    /* Validate name. */
-    if (_name.toLowerCase().indexOf('.bit') === -1) {
-        /* Append dotBit. */
-        _name += '.bit'
-    }
-
-    /* Search for the public key. */
-    publicKey = dotBitNames[_name.toLowerCase()]
-
-    // console.log(`Public key is [ ${publicKey} ]`)
-
-    /* Return public key. */
-    return publicKey
-}
-
-/**
  * Information Request Handler
  */
-const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
+const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Initialize success. */
     let success = null
 
@@ -211,7 +132,7 @@ const _handler = async function (_conn, _zeroEvent, _requestId, _data) {
         pkg = { peers: filtered, config, success }
 
         /* Emit message. */
-        _zeroEvent.emit('response', _conn, _requestId, pkg)
+        _zeroEvent.emit('response', _requestId, pkg)
     } else if (infoHash) {
         /* Emit message. */
         _zeroEvent.emit('getInfo', infoHash)

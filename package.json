@@ -6,12 +6,17 @@
   "repository": "https://github.com/d14na/supeer.git",
   "author": "D14na",
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "test": "gulp"
+  },
   "dependencies": {
     "bencode": "2.0.0",
     "bitfield": "2.0.0",
     "bittorrent-protocol": "3.0.1",
     "express": "4.16.3",
     "ip": "1.1.5",
+    "maxmind": "2.7.0",
     "moment": "2.22.2",
     "pouchdb": "7.0.0",
     "sockjs": "0.3.19",
@@ -21,5 +26,10 @@
     "web3": "1.0.0-beta.36",
     "zeronet-msgpack": "3.6.0",
     "zeronet-tracker": "0.1.1-zn"
+  },
+  "devDependencies": {
+    "chai": "4.2.0",
+    "gulp": "4.0.0",
+    "gulp-codecov": "3.0.5"
   }
 }

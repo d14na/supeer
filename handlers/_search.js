@@ -1,40 +1,68 @@
-const _handler = async function (_conn, _zeroEvent, _requestId, _query) {
-    console.log('Lets try to find something to do with', _query)
-
-    /* Initialize result. */
-    let result = null
-
-    /* Initialize success. */
-    let success = null
-
-    /* Initialize error. */
-    let error = null
-
-    /* Initialize search flag. */
-    let search = true
+const _handler = async function (_zeroEvent, _requestId, _data) {
+    /* Valiate data. */
+    if (!_data) {
+        return console.log('Search received NO data', _data)
+    }
 
     /* Validate query. */
-    if (_query.slice(-1) === '?') {
-        _query = _query.slice(0, _query.length - 1)
+    if (_data.query) {
+        /* Retrieve the query. */
+        let query = _data.query
+
+        console.log(`Lets try to find something to do with [ ${query} ]`)
+
+        /* Set search flag. */
+        const search = true
+
+        /* Initialize result. */
+        let result = null
+
+        /* Initialize success. */
+        let success = null
+
+        /* Initialize error. */
+        let error = null
+
+        /* Validate USER-DEFINED query flag. */
+        // NOTE We accomodate both EN and CN question flags.
+        if (query.slice(-1) === '?' || query.slice(-1) === '？') {
+            query = query.slice(0, query.length - 1)
+        }
+
+        /***********************************************************************
+         * 0PEN NETWORK SEARCH TERMS
+         * -------------------------
+         *
+         * These SPECIAL-CASE search terms are handled by CUSTOM scripts
+         * within the 0PEN network.
+         */
+        switch (query.toUpperCase()) {
+        case 'LOREM':
+            result = getLorem()
+            success = true
+            break
+        default:
+            // *****************************************************************
+            // FIXME Fallback to searching for dotBit (Namecoin) public keys.
+            // *****************************************************************
+
+            error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${query}</strong> ]`
+            success = false
+        }
+
+        /* Build (data) message. */
+        const data = { search, result, error, success }
+
+        /* Emit message. */
+        _zeroEvent.emit('response', _requestId, data)
+    } else {
+        console.error('THIS IS NOT A SEARCH QUERY.. WHAT SHOULD WE DO??')
     }
-
-    switch (_query.toUpperCase()) {
-    case 'LOREM':
-        result = getLorem()
-        success = true
-        break
-    default:
-        error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${_query}</strong> ]`
-        success = false
-    }
-
-    /* Build package. */
-    pkg = { search, result, error, success }
-
-    /* Emit message. */
-    _zeroEvent.emit('response', _conn, _requestId, pkg)
 }
 
+/**
+ * NOTE FOR TESTING PURPOSES ONLY
+ */
 function getLorem() {
     return `
     <p>

@@ -2,6 +2,7 @@
 const auth = require('./_auth')
 const getFile = require('./_getFile')
 const getInfo = require('./_getInfo')
+const search = require('./_search')
 const whoAmI = require('./_whoAmI')
 
 /**
@@ -14,29 +15,52 @@ const _handler = function (_conn, _zeroEvent, _requestId, _data) {
 
     /* Initialize data holders. */
     let action = null
+    let dataId = null
 
-    /* Validate data and action. */
-    if (_data && _data.action) {
+    /* Validate data. */
+    if (!_data) {
+        return console.error('No DATA was received:', _data)
+    }
+
+    /* Validate action. */
+    if (_data.action && _data.dataId) {
         /* Retrieve the action. */
         action = _data.action
 
-        console.log(`Client request [ ${_requestId} ] is [ ${action} ]`)
+        /* Retrieve the data id. */
+        dataId = _data.dataId
+
+        console.info(`Client request [ ${_requestId} ] is [ ${action} ] for [ ${dataId} ]`)
+    } else if (_data.action) {
+        /* Retrieve the action. */
+        action = _data.action
+
+        console.info(`Client request [ ${_requestId} ] is [ ${action} ]`)
     } else {
-        return console.error('No action was received for:', _data)
+        return console.error('No ACTION was received for:', _data)
     }
 
     /* Handle actions (case-insesitive). */
     switch (action.toUpperCase()) {
-    case 'AUTH':
+    case 'AUTH': // Client authorization to 0PEN.
         /* Handle request. */
         return auth(_zeroEvent, _requestId, _data)
-    case 'GETFILE':
+    case 'DELETE': // Remove 0PEN data.
+        // TODO
+        break
+    case 'GET': // Retrieve 0PEN data.
         /* Handle request. */
         return getFile(_zeroEvent, _requestId, _data)
-    case 'GETINFO':
+    case 'POST': // Add NON-IDEMPOTENT 0PEN data.
+        // TODO
+        break
+    case 'PUT': // Add/update IDEMPOTENT 0PEN data.
+        // TODO
+        break
+    case 'SEARCH': // Search 0PEN for (query term | dotBit).
         /* Handle request. */
-        return getInfo(_zeroEvent, _requestId, _data)
-    case 'WHOAMI':
+        return search(_zeroEvent, _requestId, _data)
+    case 'WHOAMI': // Client identification (ie STUN, TURN, ICE services).
         /* Handle request. */
         return whoAmI(_zeroEvent, _conn, _requestId)
     default:

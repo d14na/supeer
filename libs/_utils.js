@@ -1,4 +1,10 @@
+/* Initialize vendor libraries. */
 const crypto = require('crypto')
+const maxmind = require('maxmind')
+
+/* Initialize local data sources. */
+const dotBitNames = require(__dirname + '/../data/names.json')
+const geoLite2Loc = __dirname + '/../data/GeoLite2-City.mmdb'
 
 /**
  * Get Peer Id
@@ -41,6 +47,15 @@ const arrayMatch = function (_arr1, _arr2) {
 const calcInfoHash = function (_data) {
     /* Compute the SHA-1 hash of the data provided. */
     return crypto.createHash('sha1').update(_data).digest('hex')
+}
+
+/**
+ * Calculate Peer Identity
+ *
+ * NOTE Returned by WHOAMI request.
+ */
+const calcIdentity = function (_data) {
+    return calcInfoHash(_data)
 }
 
 /**
@@ -123,15 +138,148 @@ const parsePort = function (_buf) {
     return port
 }
 
+/**
+ * Parse Client Data
+ */
+const parseData = function (_data) {
+    /* Retrieve data id. */
+    const dataId = _data.dataId
+
+    /* Validate data id. */
+    if (dataId) {
+        if (dataId.indexOf(':') !== -1) {
+            /* Retrieve dest. */
+            const dest = dataId.split(':')[0]
+
+            /* Retrieve request. */
+            const request = dataId.split(':')[1]
+
+            // console.log('PARSED DATA ID', dest, request)
+
+            /* Return data. */
+            return { dest, request }
+        } else {
+            return null
+        }
+    } else {
+        return null
+    }
+}
+
+/**
+ * Dot Bit Name Detection
+ *
+ * FIXME Improve validation.
+ */
+const isDotBit = function (_val) {
+    if (_val.slice(-4).toUpperCase() === '.BIT') {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Public Key Validation
+ *
+ * FIXME Improve validation.
+ */
+const isPublicKey = function (_val) {
+    if (_val.slice(0, 1) === '1' && (_val.length === 33 || _val.length === 34)) {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Magnet Link Validation
+ *
+ * FIXME Improve validation.
+ */
+const isMagnetLink = function (_val) {
+    if (_val.slice(0, 20) === 'magnet:?xt=urn:btih:') {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Info Hash Validation
+ *
+ * FIXME Improve validation.
+ */
+const isInfoHash = function (_val) {
+    if (_val.length === 40) {
+        return true
+    } else {
+        return false
+    }
+}
+
+/**
+ * Retrieve dotBit Public Key
+ */
+const dotBitToPk = function (_name) {
+    // console.log(`Looking up public key for [ ${_name} ]`)
+
+    /* Initialize public key. */
+    let publicKey = null
+
+    /* Validate name. */
+    if (_name.toLowerCase().indexOf('.bit') === -1) {
+        /* Append dotBit. */
+        _name += '.bit'
+    }
+
+    /* Search for the public key. */
+    publicKey = dotBitNames[_name.toLowerCase()]
+
+    // console.log(`Public key is [ ${publicKey} ]`)
+
+    /* Return public key. */
+    return publicKey
+}
+
+/**
+ * MaxMind's GeoLite2 City Lookup
+ */
+const geoLookup = function (_ipAddress) {
+    return new Promise((_resolve, _reject) => {
+        maxmind.open(geoLite2Loc, (_err, _cityLookup) => {
+            if (_err) {
+                return _reject(_err)
+            }
+
+            /* Retrieve city. */
+            const city = _cityLookup.get(_ipAddress)
+
+            /* Resolve results. */
+            _resolve(city)
+        })
+    })
+}
+
 module.exports = {
     arrayMatch,
     calcInfoHash,
     calcFileHash,
+    calcIdentity,
     concatOverload,
     decode,
     encode,
     getPeerId,
     isJson,
     parseIp,
-    parsePort
+    parsePort,
+
+    parseData,
+    isDotBit,
+    isPublicKey,
+    isMagnetLink,
+    isInfoHash,
+    dotBitToPk,
+
+    geoLookup
 }

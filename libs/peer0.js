@@ -12,41 +12,35 @@ const _utils = require('./_utils')
  * Class: Peer0
  */
 class Peer0 {
-    constructor(_address, _site) {
-        /* Initialize a new peer id. */
-        this._id = Buffer.from(_utils.getPeerId('US'))
+    constructor(_zeroEvent, _address) {
+        /* Initialize ZeroEvent holder. */
+        this._zeroEvent = _zeroEvent
 
-        /* Initialize the peer address, ip and port. */
-        const address = _address
-        this._address = address
-        this._ip = address.split(':')[0]
-        this._port = address.split(':')[1]
-
-        /* Initialize connection. */
+        /* Initialize connection parameters. */
         this._conn = null
+        this._peerId = null
+        this._address = _address
+        this._ip = _address.split(':')[0]
+        this._port = _address.split(':')[1]
 
-        /* Initialize site from info hash. */
-        this._site = _site
-
-        /* Initialize inner path. */
+        /* Initialize data parameters. */
+        this._site = null
         this._innerPath = null
-
-        /* Initialize (internal) holders. */
         this._reqId = 0
         this._requests = []
-
-        /* Initialize promise holders (used for file requests). */
-        this._resolve = null
-        this._reject = null
 
         /* Initialize data handling helpers. */
         this._payload = null
         this._overload = null
         this._handshakeComplete = false
+
+        /* Initialize promise holders (used for file requests). */
+        this._resolve = null
+        this._reject = null
     }
 
-    get id() {
-        return this._id
+    get peerId() {
+        return this._peerId
     }
 
     get conn() {
@@ -112,6 +106,10 @@ class Peer0 {
         this._conn = _conn
     }
 
+    set peerId(_peerId) {
+        this._peerId = _peerId
+    }
+
     set handshakeComplete(_status) {
         this._handshakeComplete = _status
     }
@@ -120,20 +118,20 @@ class Peer0 {
         this._overload = _data
     }
 
-    set payload(_data) {
-        this._payload = _data
-    }
-
     set conn(_conn) {
         this._conn = _conn
     }
 
-    set reqId(_reqId) {
-        this._reqId = _reqId
-    }
-
     set innerPath(_innerPath) {
         this._innerPath = _innerPath
+    }
+
+    set payload(_data) {
+        this._payload = _data
+    }
+
+    set reqId(_reqId) {
+        this._reqId = _reqId
     }
 
     set resolve(_resolve) {
@@ -142,6 +140,10 @@ class Peer0 {
 
     set reject(_reject) {
         this._reject = _reject
+    }
+
+    set site(_site) {
+        this._site = _site
     }
 
     _getRequestId(_reqId) {
@@ -163,10 +165,8 @@ class Peer0 {
         console.log('Starting ping')
 
         const cmd = 'ping'
-
         const request = { cmd }
-
-        const req_id = this._addRequest(request) // eslint-disable-line camelcase
+        const req_id = this._addRequest(request)
 
         const pkg = {
             cmd,
@@ -175,12 +175,15 @@ class Peer0 {
         }
 
         /* Send request. */
-        this.conn.write(this._encode(pkg), function () {
+        this.conn.write(this._encode(pkg), () => {
             console.log('sent ping', pkg)
         })
     }
 
-    requestFile(_innerPath, _location) {
+    /**
+     * Request Zeronet File
+     */
+    requestFile(_dest, _innerPath, _location) {
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => {
             /* Initialize promise holders. */
@@ -189,13 +192,16 @@ class Peer0 {
         })
 
         // console.log('STARTING FILE REQUEST')
-        const cmd = 'getFile'
-        const site = this.site
-        this.innerPath = _innerPath
-        const innerPath = _innerPath
 
-        /* Initialize the location (file data pointer/index). */
-        let location = _location
+        /* Initialize request details. */
+        const cmd = 'getFile'
+        const site = _dest
+        const innerPath = _innerPath
+        const location = _location
+
+        /* Update class holders. */
+        this.site = site
+        this.innerPath = innerPath
 
         /* Build a request object (for internal tracking). */
         const request = { cmd, site, innerPath, location }
@@ -211,16 +217,24 @@ class Peer0 {
         // console.log('SENDING PACKAGE', pkg)
 
         /* Send request. */
-        this.conn.write(_utils.encode(pkg), function () {
+        this.conn.write(_utils.encode(pkg), () => {
             console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
         })
 
         return promise
     }
 
-    openConnection() {
+    /**
+     * Initialize Zeronet Peer
+     *
+     * Performs the standard handshaking process.
+     */
+    init() {
         /* Localize this. */
         const self = this
+
+        /* Initialize peer id. */
+        this.peerId = Buffer.from(_utils.getPeerId('US'))
 
         /* Initailize promise holders. */
         let resolve = null
@@ -237,13 +251,17 @@ class Peer0 {
         this.conn = net.createConnection(this.port, this.ip, () => {
             console.info(`Opened new connection [ ${this.ip}:${this.port} ]`)
 
+            /* Set command. */
             const cmd = 'handshake'
+
+            /* Set request. */
             const request = { cmd }
 
+            /* Generate a new request id. */
             const reqId = this._addRequest(request)
 
             /* Initialize handshake. */
-            const handshake = _handshake(this.ip, this.port, this.id, reqId)
+            const handshake = _handshake(this.ip, this.port, this.peerId, reqId)
 
             /* Encode handshake package. */
             const pkg = _utils.encode(handshake)
@@ -251,42 +269,42 @@ class Peer0 {
             /* Send package. */
             this.conn.write(pkg)
         })
-        // console.log('THIS.CONN', this.conn)
-
-        /* Handle closed connection. */
-        this.conn.on('close', function () {
-            console.info(`Connection closed with ${this.address}`)
-        })
 
         /* Handle connection errors. */
-        this.conn.on('error', function (_err) {
+        this.conn.on('error', (_err) => {
             console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
         })
 
+        /* Handle closed connection. */
+        this.conn.on('close', () => {
+            console.info(`Connection closed with ${this.address}`)
+        })
+
         /* Handle incoming data. */
-        this.conn.on('data', async function (_data) {
+        this.conn.on('data', async (_data) => {
             // console.log('INCOMING DATA', _data)
 
             /* Retrieve response from data handler. */
             const data = await self._handleIncomingData(_data)
-                .catch((err) => console.error('handleIncomingData ERROR', err))
+                .catch((_err) => console.error('ERROR: handleIncomingData', _err))
 
             /* Validate data. */
             if (!data) {
                 throw new Error('Data failed to be returned from handler.')
             }
 
-            // if (_utils.isJson(data)) {
-            //     console.log(`Returned data is JSON OBJECT`, data)
-            // } else if (_utils.isJson(data, true)) {
-            //     console.log(`Returned data is JSON STRING`, JSON.parse(data))
-            // } else {
-            //     console.log(`Returned data is RAW\n${data.toString('hex')}\n${data.toString()}`)
-            // }
-
             /* Handle handshakes. */
             if (data.success && data.action == 'HANDSHAKE') {
                 return resolve(data)
+
+                // /* Set success flag. */
+                // const success = true
+                //
+                // /* Build (data) message. */
+                // const data = { identity, success }
+                //
+                // /* Emit message. */
+                // return _zeroEvent.emit('response', _requestId, data)
             }
 
             /* Verify length of data body. */
@@ -296,14 +314,23 @@ class Peer0 {
                 console.log(`Data body hash is [ ${_utils.calcFileHash(body)} ]`)
 
                 /* Resolve (this object's) promise. */
-                self.resolve(body)
+                return self.resolve(body)
+
+                // /* Set success flag. */
+                // const success = true
+                //
+                // /* Build (data) message. */
+                // const data = { identity, success }
+                //
+                // /* Emit message. */
+                // return _zeroEvent.emit('response', _requestId, data)
             }
 
             /* Check for overload. */
             if (data.overload && data.location) {
                 // console.log('CONTINUE WITH DATA REQUEST', _utils.innerPath, data.location)
                 /* Continue with data request. */
-                requestFile(self.innerPath, data.location)
+                requestFile(self.site, self.innerPath, data.location)
             }
         })
 
@@ -327,8 +354,8 @@ class Peer0 {
         // console.log('msg location', msg['location'])
         // console.log('incoming msg', msg, _data.toString())
 
-        const _arrayMatch = function (_arr1, _arr2) {
-            if (_arr1.length === _arr2.length && _arr1.every(function (u, i) {
+        const _arrayMatch = (_arr1, _arr2) => {
+            if (_arr1.length === _arr2.length && _arr1.every((u, i) => {
                 return u === _arr2[i]
             })) {
                 return true

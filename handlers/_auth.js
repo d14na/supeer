@@ -12,7 +12,7 @@ const web3 = new Web3()
 const _getAccountBySig = function (_signature) {
     /* Retrieve the message. */
     const message = _signature.message
-    console.log(`Received signature message [ ${message} ]`)
+    // console.log(`Received signature message [ ${message} ]`)
 
     try {
         /* Recover the account (address) from the signature object. */
@@ -31,11 +31,11 @@ const _getAccountBySig = function (_signature) {
 const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Retrieve the signature. */
     const signature = _data.sig
-    console.log('Perform authorization for', signature)
+    // console.log('Perform authorization for', signature)
 
     /* Retrieve account for this signature. */
     const account = await _getAccountBySig(signature)
-    console.info(`Validation successful for [ ${account} ]`)
+    // console.info(`Validation successful for [ ${account} ]`)
 
     /* Set success flag. */
     const success = true
