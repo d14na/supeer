@@ -1,3 +1,9 @@
+/* Initialize local handlers. */
+const getFile = require('./_getFile')
+
+/* Initialize local libraries. */
+const _utils = require('../libs/_utils')
+
 const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Valiate data. */
     if (!_data) {
@@ -42,12 +48,23 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
             success = true
             break
         default:
-            // *****************************************************************
-            // FIXME Fallback to searching for dotBit (Namecoin) public keys.
-            // *****************************************************************
+            /* Destination dotBit detection. */
+            if (_utils.dotBitToPk(query)) {
+                /* Retrieve public key (Bitcoin address). */
+                const publicKey = _utils.dotBitToPk(query)
 
-            error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${query}</strong> ]`
-            success = false
+                /* Set data id. */
+                const dataId = `${publicKey}:content.json`
+
+                /* Update data. */
+                _data.dataId = dataId
+
+                /* Handle request. */
+                return getFile(_zeroEvent, _requestId, _data)
+            } else {
+                error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${query}</strong> ]`
+                success = false
+            }
         }
 
         /* Build (data) message. */

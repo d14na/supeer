@@ -9,29 +9,29 @@ const Peer0 = require('../libs/peer0')
 /**
  * Zite Configuration Request Handler
  */
-const _requestConfig = function (_peer, _destination) {
-    return new Promise(async (_resolve, _reject) => {
-        /* Create new Peer. */
-        const peer0 = new Peer0(_peer, _destination)
-
-        /* Open a new connection. */
-        const conn = await peer0.openConnection()
-            .catch((err) => {
-                console.log('WHAT HAPPENED WITH OUR CONNECTION??')
-                _reject(err)
-            })
-
-        if (conn && conn.action === 'HANDSHAKE') {
-            /* Start discovery of peers. */
-            const fileData = await peer0.requestFile('content.json', 0)
-                .catch(_reject)
-
-            _resolve(fileData)
-        } else {
-            _reject(`Handshake with ${_peer} failed!`)
-        }
-    })
-}
+// const _requestConfig = function (_peer, _destination) {
+//     return new Promise(async (_resolve, _reject) => {
+//         /* Create new Peer. */
+//         const peer0 = new Peer0(_peer, _destination)
+//
+//         /* Open a new connection. */
+//         const conn = await peer0.openConnection()
+//             .catch((err) => {
+//                 console.log('WHAT HAPPENED WITH OUR CONNECTION??')
+//                 _reject(err)
+//             })
+//
+//         if (conn && conn.action === 'HANDSHAKE') {
+//             /* Start discovery of peers. */
+//             const fileData = await peer0.requestFile('content.json', 0)
+//                 .catch(_reject)
+//
+//             _resolve(fileData)
+//         } else {
+//             _reject(`Handshake with ${_peer} failed!`)
+//         }
+//     })
+// }
 
 /**
  * Information Request Handler
@@ -49,21 +49,21 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Initialize info hash. */
     let infoHash = null
 
-    /* Destination dotBit detectoin. */
-    // NOTE Public key (Bitcoin address) validation should be first.
-    if (_isMagnetLink(_data.query)) {
-        /* Retrieve info hash. */
-        infoHash = _data.query.slice(20, 60)
-    } else if (_isDotBit(_data.query) || (!_isPublicKey(_data.query) && !_isInfoHash(_data.query))) {
-        /* Update destination. */
-        destination = _dotBitToPk(_data.query)
-    } else if (_isPublicKey(_data.query)) {
-        /* Update destination. */
-        destination = _data.query
-    } else if (_isInfoHash(_data.query)) {
-        /* Update info hash. */
-        infoHash = _data.query
-    }
+    // /* Destination dotBit detectoin. */
+    // // NOTE Public key (Bitcoin address) validation should be first.
+    // if (_isMagnetLink(_data.query)) {
+    //     /* Retrieve info hash. */
+    //     infoHash = _data.query.slice(20, 60)
+    // } else if (_isDotBit(_data.query) || (!_isPublicKey(_data.query) && !_isInfoHash(_data.query))) {
+    //     /* Update destination. */
+    //     destination = _dotBitToPk(_data.query)
+    // } else if (_isPublicKey(_data.query)) {
+    //     /* Update destination. */
+    //     destination = _data.query
+    // } else if (_isInfoHash(_data.query)) {
+    //     /* Update info hash. */
+    //     infoHash = _data.query
+    // }
 
     // console.log('DEST/INFO', destination, infoHash)
 
