@@ -1,5 +1,5 @@
 /* Initialize local handlers. */
-const getFile = require('./_getFile')
+const requestData = require('./_requestData')
 
 /* Initialize local libraries. */
 const _utils = require('../libs/_utils')
@@ -60,7 +60,7 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
                 _data.dataId = dataId
 
                 /* Handle request. */
-                return getFile(_zeroEvent, _requestId, _data)
+                return requestData(_zeroEvent, _requestId, _data)
             } else {
                 error = `Sorry, we coudn't find anything for<br />[ <strong class="text-primary">${query}</strong> ]`
                 success = false

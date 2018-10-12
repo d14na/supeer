@@ -1,6 +1,6 @@
 /* Initialize local handlers. */
 const auth = require('./_auth')
-const getFile = require('./_getFile')
+const requestData = require('./_requestData')
 const search = require('./_search')
 const whoAmI = require('./_whoAmI')
 
@@ -49,7 +49,7 @@ const _handler = function (_conn, _zeroEvent, _requestId, _data) {
         break
     case 'GET': // Retrieve 0PEN data.
         /* Handle request. */
-        return getFile(_zeroEvent, _requestId, _data)
+        return requestData(_zeroEvent, _requestId, _data)
     case 'POST': // Add NON-IDEMPOTENT 0PEN data.
         // TODO
         break

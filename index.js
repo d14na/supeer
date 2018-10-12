@@ -218,7 +218,7 @@ zeroEvent.on('msg', (_conn, _msg) => {
         //       is no explicit connection provided??
         for (let conn in connMgr) {
             /* Send message. */
-            _sendMessage(conn, _msg)
+            _sendMessage(_getConnection(conn), _msg)
         }
     }
 })
@@ -297,17 +297,17 @@ zeroEvent.on('requestBigFile', (_hash) => {
 /**
  * ZeroEvent Listener: Request Torrent Info
  */
-zeroEvent.on('requestInfo', (_infoHash) => {
-    /* Retrieve torrent info. */
-    torrentMgr.requestInfo(dht, _infoHash)
+zeroEvent.on('requestInfo', (_requestId, _infoHash) => {
+    /* Request torrent info. */
+    torrentMgr.requestInfo(dht, _requestId, _infoHash)
 })
 
 /**
  * ZeroEvent Listener: Request Torrent Block
  */
-zeroEvent.on('requestBlock', (_infoHash, _blockNum) => {
-    /* Retrieve torrent info. */
-    torrentMgr.requestBlock(_infoHash, _blockNum)
+zeroEvent.on('requestBlock', (_requestId, _dataId) => {
+    /* Request torrent block. */
+    torrentMgr.requestBlock(_requestId, _dataId)
 })
 
 /**

@@ -40,7 +40,7 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
 
     /* Validate data. */
     if (!data) {
-        return console.error('GETFILE handler has NO data available', _data)
+        return console.error('GET handler has NO "parseable" data available', _data)
     }
 
     /* Initialize success. */
@@ -55,14 +55,17 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
     /* Retrieve Zeronet destination. */
     dest = data.dest
 
-    /* Retrieve Torrent info hash. */
+    /* Retrieve torrent info hash. */
     infoHash = data.infoHash
 
-    // console.log('DEST / INFO HASH', dest, infoHash)
+    /* Retrieve request (follows data id endpoint by ':'). */
+    const request = data.request
 
-    /* Validate destination OR info hash. */
-    if (!dest && !infoHash) {
-        return console.error('ERROR loading destination or info hash.', _data)
+    console.log('Destination / Info Hash / Request', dest, infoHash, request)
+
+    /* Validate destination OR info hash OR data id. */
+    if (!dest && !infoHash && !request) {
+        return console.error('ERROR loading data:', _data)
     }
 
     if (dest) {
@@ -89,13 +92,13 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
             return port > 1
         })
 
-        /* Retrieve inner path. */
-        const innerPath = data.request
+        /* Set inner path. */
+        const innerPath = request
 
         /* Initialize body manager. */
         let body = null
 
-        // FOR TESTING PURPOSES ONLY
+        // TEMP FOR TESTING PURPOSES ONLY
         filtered.unshift('185.142.236.207:10443')
 
         console.log(`Requesting ${innerPath} for ${dest} via ${filtered[0]}`);
@@ -136,8 +139,19 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
         /* Emit message. */
         _zeroEvent.emit('response', _requestId, data)
     } else if (infoHash) {
-        /* Emit message. */
-        _zeroEvent.emit('requestInfo', Buffer.from(infoHash, 'hex'))
+        /* Validate request. */
+        if (request === 'torrent') {
+            /* Emit message. */
+            _zeroEvent.emit('requestInfo', _requestId, Buffer.from(infoHash, 'hex'))
+        } else if (Number.isInteger(parseInt(request))) {
+            /* Retrieve data id. */
+            const dataId = _data.dataId
+
+            /* Emit message. */
+            _zeroEvent.emit('requestBlock', _requestId, dataId)
+        } else {
+            return console.error('ERROR parsing info hash request data:', request)
+        }
     }
 }
 
