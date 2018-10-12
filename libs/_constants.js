@@ -17,5 +17,6 @@ module.exports = {
     BITTORRENT_PORT   : 6881,
     OPENTRACKER_PORT  : 6969,
     TORRENT_MAX_CONN  : 50,
-    BLOCK_HASH_LENGTH : 20
+    BLOCK_HASH_LENGTH : 20,
+    CHUNK_LENGTH      : 16384
 }

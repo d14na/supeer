@@ -92,7 +92,7 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
         /* Retrieve inner path. */
         const innerPath = data.request
 
-        /* Initialize body holder. */
+        /* Initialize body manager. */
         let body = null
 
         // FOR TESTING PURPOSES ONLY
@@ -137,7 +137,7 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
         _zeroEvent.emit('response', _requestId, data)
     } else if (infoHash) {
         /* Emit message. */
-        _zeroEvent.emit('getInfo', Buffer.from(infoHash, 'hex'))
+        _zeroEvent.emit('requestInfo', Buffer.from(infoHash, 'hex'))
     }
 }
 

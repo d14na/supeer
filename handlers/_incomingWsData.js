@@ -12,7 +12,7 @@ const _handler = function (_conn, _zeroEvent, _requestId, _data) {
 
     // TODO Validate request id
 
-    /* Initialize data holders. */
+    /* Initialize data managers. */
     let action = null
     let dataId = null
 

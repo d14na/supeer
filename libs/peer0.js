@@ -13,7 +13,7 @@ const _utils = require('./_utils')
  */
 class Peer0 {
     constructor(_zeroEvent, _address) {
-        /* Initialize ZeroEvent holder. */
+        /* Initialize ZeroEvent manager. */
         this._zeroEvent = _zeroEvent
 
         /* Initialize connection parameters. */
@@ -34,7 +34,7 @@ class Peer0 {
         this._overload = null
         this._handshakeComplete = false
 
-        /* Initialize promise holders (used for file requests). */
+        /* Initialize promise managers (used for file requests). */
         this._resolve = null
         this._reject = null
     }
@@ -186,7 +186,7 @@ class Peer0 {
     requestFile(_dest, _innerPath, _location) {
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => {
-            /* Initialize promise holders. */
+            /* Initialize promise managers. */
             this.resolve = _resolve
             this.reject = _reject
         })
@@ -199,7 +199,7 @@ class Peer0 {
         const innerPath = _innerPath
         const location = _location
 
-        /* Update class holders. */
+        /* Update class managers. */
         this.site = site
         this.innerPath = innerPath
 
@@ -236,13 +236,13 @@ class Peer0 {
         /* Initialize peer id. */
         this.peerId = Buffer.from(_utils.getPeerId('US'))
 
-        /* Initailize promise holders. */
+        /* Initailize promise managers. */
         let resolve = null
         let reject = null
 
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => { // eslint-disable-line promise/param-names
-            /* Initialize promise holders. */
+            /* Initialize promise managers. */
             resolve = _resolve
             reject = _reject
         })
@@ -339,7 +339,7 @@ class Peer0 {
     }
 
     _handleIncomingData(_data) {
-        /* Initailize promise holders. */
+        /* Initailize promise managers. */
         let resolve = null
         let reject = null
 
@@ -366,7 +366,7 @@ class Peer0 {
 
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => { // eslint-disable-line promise/param-names
-            /* Initialize promise holders. */
+            /* Initialize promise managers. */
             resolve = _resolve
             reject = _reject
         })
@@ -379,7 +379,7 @@ class Peer0 {
         //     Buffer.from(this.payload).toString('hex'),
         //     Buffer.from(this.payload).toString())
 
-        /* Initialize decoded holder. */
+        /* Initialize decoded manager. */
         let decoded = null
 
         /* Initialize (msgpack) ending flag. */
@@ -461,7 +461,7 @@ class Peer0 {
                     this.overload = _utils.concatOverload(this.overload, this.payload)
                     // console.log('HANDLE THE OVERLOAD 1', this.overload.length)
 
-                    /* Copy the overload holder to the payload. */
+                    /* Copy the overload manager to the payload. */
                     this.payload = this.overload
                     // console.log('HANDLE THE PAYLOAD', this.payload.length)
 

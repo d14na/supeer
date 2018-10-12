@@ -4,6 +4,7 @@ const DHT = require('bittorrent-dht')
 const EventEmitter = require('events')
 const http = require('http')
 const ip = require('ip')
+const moment = require('moment')
 const net = require('net')
 const PouchDB = require('pouchdb')
 const sockjs = require('sockjs')
@@ -26,16 +27,16 @@ class ZeroEvent extends EventEmitter {}
 /* Initialize new ZeroEvent. */
 const zeroEvent = new ZeroEvent()
 
-/* Initialize HTTP (WebSocket) holder. */
+/* Initialize HTTP (WebSocket) manager. */
 let server = null
 
-/* Initialize SockJS (WebSocket) holder. */
+/* Initialize SockJS (WebSocket) manager. */
 let ws = null
 
-/* Initialize DHT holder. */
+/* Initialize DHT manager. */
 let dht = null
 
-/* Initialize PEX holder. */
+/* Initialize PEX manager. */
 let pex = null
 
 /* Initialize connections manager. */
@@ -204,12 +205,22 @@ zeroEvent.on('error', (_err) => {
  * NOTE These are UNREQUESTED messages originating from ZeroEvent.
  *      e.g. notifications, network alerts, etc.
  */
-zeroEvent.on('msg', (_msg) => {
+zeroEvent.on('msg', (_conn, _msg) => {
     // FIXME Query against authorization ids of "connected" clients
     //       for applicable message recipients.
 
-    /* Send message. */
-    _sendMessage(_conn, msg)
+    if (_conn) {
+        /* Send message. */
+        _sendMessage(_conn, _msg)
+    } else {
+        /* Send message to ALL active connections. */
+        // FIXME How can we BETTER manage message delivery when there
+        //       is no explicit connection provided??
+        for (let conn in connMgr) {
+            /* Send message. */
+            _sendMessage(conn, _msg)
+        }
+    }
 })
 
 /**
@@ -262,7 +273,7 @@ zeroEvent.on('response', (_requestId, _data) => {
 /**
  * ZeroEvent Listener: Request Zite Config
  */
-zeroEvent.on('getConfig', (_dest) => {
+zeroEvent.on('requestConfig', (_dest) => {
     // TODO Request zite configuration file
 })
 
@@ -271,14 +282,14 @@ zeroEvent.on('getConfig', (_dest) => {
  *
  * NOTE We use the 32-bytes (partial 50%) from the SHA-512 hash.
  */
-zeroEvent.on('getFile', (_hash) => {
+zeroEvent.on('requestFile', (_hash) => {
     // TODO Request zeronet file
 })
 
 /**
  * ZeroEvent Listener: Request Zeronet BIG File
  */
-zeroEvent.on('getBigFile', (_hash) => {
+zeroEvent.on('requestBigFile', (_hash) => {
     // TODO Request zeronet BIG file
     // NOTE We have NO idea how to do this yet???
 })
@@ -286,17 +297,17 @@ zeroEvent.on('getBigFile', (_hash) => {
 /**
  * ZeroEvent Listener: Request Torrent Info
  */
-zeroEvent.on('getInfo', (_infoHash) => {
+zeroEvent.on('requestInfo', (_infoHash) => {
     /* Retrieve torrent info. */
-    torrentMgr.getInfo(dht, _infoHash)
+    torrentMgr.requestInfo(dht, _infoHash)
 })
 
 /**
  * ZeroEvent Listener: Request Torrent Block
  */
-zeroEvent.on('getBlock', (_infoHash, _blockNum) => {
+zeroEvent.on('requestBlock', (_infoHash, _blockNum) => {
     /* Retrieve torrent info. */
-    torrentMgr.getBlock(_infoHash, _blockNum)
+    torrentMgr.requestBlock(_infoHash, _blockNum)
 })
 
 /**
@@ -349,6 +360,17 @@ const _initWebSocketServer = () => {
     ws.on('connection', (_conn) => {
         /* Add new connection to manager. */
         _addConnection(_conn)
+
+        // TEMP SAMPLE WELCOME MESSAGE FOR NEW USERS
+        const welcomeNotif = {
+            action: 'NOTIF',
+            id: 1337,
+            heading: 'Londynn Lee (ADMIN)',
+            description: `Welcome to Zer0net! I'm available to you 24x7 for help and support.`,
+            icon: 'https://i.imgur.com/mxle8nF.jpg',
+            dateCreated: moment().unix()
+        }
+        zeroEvent.emit('msg', _conn, welcomeNotif)
 
         /* Initialize error listener. */
         _conn.on('error', _handleError)
@@ -489,6 +511,11 @@ const _initPexServer = () => {
     /* Initialize error listener. */
     pex.on('error', (_err) => {
         console.error('Oops! PEX server had an error', _err)
+    })
+
+    // FIXME TEMPORARY RANDOM CRASH TRACER.
+    pex.on('uncaughtException', (err) => {
+        console.error('PEX CRASH TRACER', err)
     })
 
     /* Initialize connection listener. */

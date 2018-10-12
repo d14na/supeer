@@ -21,7 +21,6 @@
     "pouchdb": "7.0.0",
     "sockjs": "0.3.19",
     "torrent-discovery": "9.1.1",
-    "torrent-piece": "2.0.0",
     "ut_metadata": "3.3.0",
     "web3": "1.0.0-beta.36",
     "zeronet-msgpack": "3.6.0",

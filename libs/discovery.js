@@ -25,7 +25,7 @@ class Discovery {
     constructor(_infoHash) {
         console.info('New P2P Discovery created!')
 
-        /* Initialize holder of successful peer connections. */
+        /* Initialize manager of successful peer connections. */
         this._peers = []
 
         /* Initialize found max flag. */
@@ -116,7 +116,7 @@ class Discovery {
 
         /* Initialize a NEW client connection/handshake (if needed). */
         const promise = new Promise((_resolve, _reject) => { // eslint-disable-line promise/param-names
-            /* Initialize promise holders. */
+            /* Initialize promise managers. */
             resolve = _resolve
             reject = _reject
         })
