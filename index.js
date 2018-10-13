@@ -115,7 +115,7 @@ const _addDataId = (_dataId, _requestId) => {
 const _addRequest = (_request) => {
     /* Validate request id. */
     if (!_request || !_request.requestId) {
-        return console.error('Could not retrieve request id for:', _request)
+        throw new Error(`Could not retrieve request id for [ ${JSON.stringify(_request)} ]`)
     }
 
     /* Set request id. */
@@ -145,7 +145,7 @@ const _getRequest = (_requestId) => {
         /* Remove request from manager. */
         // FIXME Verify that we do not need to persist this request
         //       after retrieving and returning its details.
-        delete requestMgr[_requestId]
+        // delete requestMgr[_requestId]
     }
 
     /* Return the request. */
@@ -365,7 +365,8 @@ const _initWebSocketServer = () => {
         const welcomeNotif = {
             action: 'NOTIF',
             id: 1337,
-            heading: 'Londynn Lee (ADMIN)',
+            flags: ['ADMIN'],
+            heading: 'Londynn Lee',
             description: `Welcome to Zer0net! I'm available to you 24x7 for help and support.`,
             icon: 'https://i.imgur.com/mxle8nF.jpg',
             dateCreated: moment().unix()
@@ -520,7 +521,16 @@ const _initPexServer = () => {
 
     /* Initialize connection listener. */
     pex.on('connection', (_socket) => {
-        console.info('NEW incoming PEX connection.')
+        // console.info('NEW incoming PEX connection.')
+
+        /* Initialize error listener. */
+        // FIXME This is a MAJOR fault in the system. CAN WE IGNORE THIS???
+        //       Error: read ECONNRESET
+        //       at _errnoException (util.js:992:11)
+        //       at TCP.onread (net.js:618:25) code: 'ECONNRESET', errno: 'ECONNRESET', syscall: 'read' }
+        _socket.on('error', (_err) => {
+            console.error('Oops! PEER SOCKET connection had an error', _err)
+        })
 
         /* Emit socket for new PEX connection. */
         zeroEvent.emit('socket', _socket)

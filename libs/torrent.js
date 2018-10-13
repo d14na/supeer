@@ -30,6 +30,7 @@ class Torrent {
         this._addInfo = this._addInfo.bind(this)
         this._addWire = this._addWire.bind(this)
         this._getInfoByHash = this._getInfoByHash.bind(this)
+        this._getNextRequest = this._getNextRequest.bind(this)
         this._getRequestById = this._getRequestById.bind(this)
         this._getWireId = this._getWireId.bind(this)
         this._getWireById = this._getWireById.bind(this)
@@ -75,18 +76,18 @@ class Torrent {
         this._requestMgr[_dataId]['lastUpdate'] = new Date().toJSON()
 
         /* Set data id. */
-        const dataId = _dataId
+        // const dataId = _dataId
 
         /* Set request manager. */
         // TEMP FOR TESTING PURPOSES ONLY
-        const requestMgr = this._requestMgr
+        // const requestMgr = this._requestMgr
 
         /* Build (data) info. */
-        const data = { dataId, requestMgr }
+        // const data = { dataId, requestMgr }
 
         /* Emit message. */
         // TEMP FOR TESTING PURPOSES ONLY
-        this.zeroEvent.emit('msg', null, data)
+        // this.zeroEvent.emit('msg', null, data)
     }
 
     /**
@@ -148,6 +149,95 @@ class Torrent {
      */
     _getInfoByHash(_infoHash) {
         return this._infoMgr[_infoHash]
+    }
+
+    /**
+     * Get Next Request from Manager
+     */
+    _getNextRequest(_infoHash) {
+        console.log('SEARCHING FOR NEXT REQUEST', _infoHash)
+        /* Retrieve torrent info. */
+        const torrentInfo = this._getInfoByHash(_infoHash)
+
+        /* Validate torrent info. */
+        if (!torrentInfo) {
+            return console.error(`Could NOT retrieve torrent info for [ ${_infoHash} ]`)
+        }
+
+        // console.log('TORRENT FILES', typeof torrentInfo['files'], torrentInfo['files'])
+        /* Calculate total torrent size. */
+        const torrentSize = torrentInfo['files'].reduce((_acc, _cur) => {
+            // console.log('REDUCE', _acc, typeof _cur, _cur, _cur.length)
+            return (_acc + _cur.length)
+        }, 0)
+        console.log('CALCULATED TORRENT SIZE', torrentSize)
+
+        /* Retrieve torrent blocks. */
+        const blocks = Buffer.from(torrentInfo['pieces'])
+
+        /* Calculate the number of hashes/blocks. */
+        const numBlocks = blocks.length / _constants.BLOCK_HASH_LENGTH
+        console.log('NEXT REQUEST: TOTAL BLOCKS IN TORRENT', numBlocks)
+
+        /* Initialize data id. */
+        let dataId = null
+
+        /* Initialize request. */
+        let request = null
+
+        /* Initialize number of chunks. */
+        let numChunks = 0
+
+        /* Initialize number of "completed" chunks. */
+        let numCompletedChunks = 0
+
+        /* Initialize next block length. */
+        let nextBlockLength = 0
+
+        for (let nextBlockIndex = 0; nextBlockIndex < numBlocks; nextBlockIndex++) {
+            /* Set data id. */
+            dataId = `${_infoHash}:${nextBlockIndex}`
+
+            /* Retrieve request. */
+            request = this._getRequestById(dataId)
+
+            /* Validate request. */
+            if (!request) {
+                // NOTE There is NO request for this data id.
+                continue
+            }
+
+            /* Retrieve number of chunks. */
+            numChunks = request['numChunks']
+
+            /* Retrieve total # of completed chunks. */
+            numCompletedChunks = Object.keys(request['chunks']).length
+
+            console.info(
+                `Found [ ${numCompletedChunks} of ${numChunks} ] in request [ ${dataId} ]`)
+
+            /* Validate uncompleted request. */
+            if (numCompletedChunks < numChunks) {
+                /* Retrieve piece length. */
+                const pieceLength = parseInt(torrentInfo['piece length'])
+
+                /* Calculate next block length. */
+                if (nextBlockIndex + 1 === numBlocks) {
+                    // NOTE This is the ENDGAME (last torrent block).
+                    console.info('WE ARE IN THE ENDGAME NOW')
+
+                    nextBlockLength = torrentSize - ((numBlocks - 1) * pieceLength)
+                } else {
+                    nextBlockLength = pieceLength
+                }
+
+                /* Return next block index & length. */
+                return { nextBlockIndex, nextBlockLength }
+            }
+        }
+
+        /* There are NO uncompleted requests pending. */
+        return null
     }
 
     /**
@@ -232,6 +322,9 @@ class Torrent {
         /* Set info hash. */
         const infoHash = Buffer.from(_infoHash).toString('hex')
 
+        /* Add torrent metadata to manager. */
+        this._addInfo(infoHash, torrentInfo)
+
         /* Set success flag. */
         const success = true
 
@@ -241,9 +334,6 @@ class Torrent {
         /* Build (data) info. */
         const data = { dataId, infoHash, torrentInfo, success }
 
-        /* Add torrent metadata to manager. */
-        this._addInfo(infoHash, torrentInfo)
-
         /* Emit message. */
         this.zeroEvent.emit('response', null, data)
     }
@@ -251,16 +341,32 @@ class Torrent {
     /**
      * Request Block Chunk
      */
-    _requestChunk(_dataId, _wire, _blockIndex, _chunkIndex) {
+    _requestChunk(_dataId, _wire, _blockIndex, _nextBlockLength, _chunkIndex) {
+        /* Initialize ENDGAME flag. */
+        let endgame = false
+
         /* Confirm that we are NOT being choked by this peer. */
         if (_wire.peerChoking) {
             return console.error('\n***Oh NOOO! What happened? Why are they CHOKING?? I thought we were good!\n')
         }
 
-        // console.info(`\nFINALIZING request for block #${_blockIndex} at ${_offset} for ${_length} bytes\n`)
+        /* Calculate offset. */
+        const offset = (_chunkIndex * _constants.CHUNK_LENGTH)
 
-        const length = _constants.CHUNK_LENGTH // 16384
-        const offset = (_chunkIndex * length)
+        /* Initialize length. */
+        let length = null
+
+        /* Calculate length. */
+        if (((_chunkIndex + 1) * _constants.CHUNK_LENGTH) > _nextBlockLength) {
+            /* Set ENDGAME flag. */
+            endgame = true
+
+            // NOTE Calculate ENDGAME length of last chunk
+            length = _nextBlockLength - (_chunkIndex * _constants.CHUNK_LENGTH)
+        } else {
+            length = _constants.CHUNK_LENGTH
+        }
+        console.log('CALCULATE REQUEST LENGTH:', length)
 
         console.info(
             `Requesting chunk [ ${_blockIndex}, ${_chunkIndex} ] [ ${offset}, ${length} ]`)
@@ -269,9 +375,6 @@ class Torrent {
             if (_err) {
                 return console.error('ERROR! Request for chunk failed:', _err.message)
             }
-
-            /* Retrieve the data from the chunk. */
-            // const data = Buffer.from(_chunk)
 
             console.info(`Received ${_chunk.length} bytes of chunk [ ${_blockIndex}, ${_chunkIndex} ]`)
             console.log(_chunk.slice(0, 50).toString('hex'), '\n')
@@ -282,27 +385,46 @@ class Torrent {
             /* Increment chunk index. */
             _chunkIndex++
 
-            // return // FIXME Create a CUSTOM chunks manager.
-
             /* Set request info. */
-            const requestInfo = this._requestMgr[dataId]
+            const requestInfo = this._requestMgr[_dataId]
 
             /* Set number of chunks in block. */
             const numChunks = requestInfo['numChunks']
 
-            // this._requestMgr[dataId] = {
-            //     numChunks,
-            //     chunks: {},
-            //     chunkIndex: 0,
-            //     dataAdded:  new Date().toJSON(),
-            //     lastUpdate: new Date().toJSON()
-            // }
-
             /* Validate current chunk index. */
-            if (_chunkIndex < numChunks) {
+            if (!endgame && _chunkIndex < numChunks) {
                 /* Request another block from this peer. */
-                this._requestChunk(_dataId, _wire, _blockIndex, _chunkIndex)
-            } else if (_chunkIndex === numChunks) {
+                this._requestChunk(_dataId, _wire, _blockIndex, _nextBlockLength, _chunkIndex)
+            } else if (endgame || _chunkIndex === numChunks) {
+                /* Initialize block array. */
+                let blockArray = []
+
+                /* Initialize number of completed chunks. */
+                const numCompletedChunks = Object.keys(requestInfo['chunks']).length
+
+                for (let i = 0; i < numCompletedChunks; i++) {
+                    /* Retrieve chunk from request. */
+                    const chunk = requestInfo['chunks'][i]
+
+                    /* Validate chunk. */
+                    if (chunk) {
+                        /* Add (buffer) chunk to array. */
+                        blockArray.push(Buffer.from(chunk))
+                    }
+                }
+
+                /* Concatenate all block chunks. */
+                const blockBuffer = Buffer.concat(blockArray)
+                console.log('BLOCK BUFFER', blockBuffer.length)
+
+                /* Calculate verification hash. */
+                const hash = _utils.calcInfoHash(blockBuffer)
+                console.log(`Block #${_blockIndex} SHA-1 hash [ ${hash} ]`)
+
+                /* Compare expected and actual verification hashes. */
+                // const matched = Buffer.from(hash, 'hex') === Buffer.from(this.blockHashes[this.blockIndex], 'hex')
+                // console.log(`Block #${_blockIndex} verification [ ${matched} ]`);
+
                 /* Set success flag. */
                 const success = true
 
@@ -310,33 +432,10 @@ class Torrent {
                 const dataId = _dataId
 
                 /* Build (data) info. */
-                const data = { dataId, requestInfo, success }
+                const data = { dataId, blockBuffer, hash, success }
 
                 /* Emit message. */
-                // this.zeroEvent.emit('response', null, data)
-
-                // TEMP DEBUGGING PURPOSES ONLY
-                const buf0 = Buffer.from(requestInfo['chunks'][0])
-                const buf1 = Buffer.from(requestInfo['chunks'][1])
-                const buf2 = Buffer.from(requestInfo['chunks'][2])
-                const buf3 = Buffer.from(requestInfo['chunks'][3])
-                const arr = [buf0, buf1, buf2, buf3]
-                const blockBuffer = Buffer.concat(arr)
-                console.log('BLOCK BUFFER', blockBuffer.length)
-
-                /* Calculate verification hash. */
-                const hash = _utils.calcInfoHash(blockBuffer)
-                console.log(`Block #${_blockIndex} SHA-1 hash [ ${hash} ]`)
-
-                // TEMP DEBUGGING PURPOSES ONLY
-                const debug = { hash, blockBuffer }
-                this.zeroEvent.emit('msg', null, debug)
-
-                /* Compare expected and actual verification hashes. */
-                // const matched = Buffer.from(hash, 'hex') === Buffer.from(this.blockHashes[this.blockIndex], 'hex')
-                // console.log(`Block #${_blockIndex} verification [ ${matched} ]`);
-
-                throw new Error('STOP HERE!')
+                this.zeroEvent.emit('response', null, data)
             }
         })
     }
@@ -421,7 +520,7 @@ class Torrent {
             //      want to know that metadata is probably not going to
             //      arrive for one of the issued reasons.
             wire.ut_metadata.on('warning', (_err) => {
-                console.error('WARNING issued for Metadata extension', _err)
+                // console.info('WARNING issued for Metadata extension', _err)
             })
 
             // NOTE 'metadata' event will fire when the metadata arrives
@@ -439,7 +538,7 @@ class Torrent {
                     return
                 }
 
-                console.info(`Handshake from ${_peerId}`)
+                // console.info(`Handshake from ${_peerId}`)
                 // console.log('Handshake EXTENSIONS', _extensions)
 
                 /* Add wire id (same as peer id) to wire. */
@@ -534,32 +633,35 @@ class Torrent {
             })
 
             wire.on('unchoke', () => {
-                // FIXME Lookup requested blocks from request manager.
-                // TEMP FOR TESTING PURPOSES ONLY
-                const blockIndex = 0
-                // infoHash
-                // _getRequestById
-
-                /* Set data id. */
-                const dataId = `${Buffer.from(infoHash).toString('hex')}:${blockIndex}`
-
-                // TEMP FOR TESTING PURPOSES ONLY
-                this.requestBlock(null, dataId)
-                const chunkIndex = 0
-
                 /* Retrieve wire id (from manager). */
                 const wireId = this._getWireId(wire)
 
                 console.info(`[ ${wireId} ] has UN-CHOKED [ ${!wire.peerChoking} ]`)
 
-                if (wire.peerPieces.get(blockIndex)) {
-                    console.log('AND THEY HAVE THE BLOCK THAT WE NEED!')
-                } else {
-                    console.log('OH NO! THEY DONT HAVE THE BLOCK WE NEED')
+                /* Retrieve the next uncompleted request. */
+                const nextBlockRequest = this._getNextRequest(Buffer.from(infoHash).toString('hex'))
+
+                if (!nextBlockRequest) {
+                    return console.error(
+                        `There are NO requests for [ ${Buffer.from(infoHash).toString('hex')} ]`)
                 }
 
+                console.log('NEXT BLOCK REQUEST:', nextBlockRequest)
+
+                const nextBlockIndex = nextBlockRequest['nextBlockIndex']
+                const nextBlockLength = nextBlockRequest['nextBlockLength']
+
+                /* Set data id. */
+                const dataId = `${Buffer.from(infoHash).toString('hex')}:${nextBlockIndex}`
+
+                // TEMP FOR TESTING PURPOSES ONLY
+                // this.requestBlock(null, dataId)
+
+                /* Initialize "starting" chunk index. */
+                const chunkIndex = 0
+
                 /* Request a new chunk. */
-                this._requestChunk(dataId, wire, blockIndex, chunkIndex)
+                this._requestChunk(dataId, wire, nextBlockIndex, nextBlockLength, chunkIndex)
             })
         })
     }
@@ -570,24 +672,18 @@ class Torrent {
      * NOTE Data Id is {Info hash}:{Block Index}
      */
     requestBlock(_requestId, _dataId) {
-        /* Set request id. */
-        const requestId = _requestId
-
-        /* Set data id. */
-        const dataId = _dataId
-
         /* Validate data id. */
-        if (!dataId || dataId.indexOf(':') === -1) {
-            return console.error(`Could NOT verify request for [ ${dataId} ]`)
+        if (!_dataId || _dataId.indexOf(':') === -1) {
+            return console.error(`Could NOT verify request for [ ${_dataId} ]`)
         }
 
         /* Validate request. */
-        if (!this._getRequestById(dataId)) {
+        if (!this._getRequestById(_dataId)) {
             /* Set info hash. */
-            const infoHash = dataId.split(':')[0]
+            const infoHash = _dataId.split(':')[0]
 
             /* Set block index. */
-            const blockIndex = dataId.split(':')[1]
+            const blockIndex = _dataId.split(':')[1]
 
             console.log(`Received a request for block [ ${blockIndex} ] of [ ${infoHash} ]`)
 
@@ -608,9 +704,8 @@ class Torrent {
             }
 
             /* Add new request. */
-            this._requestMgr[dataId] = {
+            this._requestMgr[_dataId] = {
                 numChunks,
-                chunkIndex: 0,
                 chunks: {},
                 dataAdded:  new Date().toJSON(),
                 lastUpdate: new Date().toJSON()
@@ -619,17 +714,20 @@ class Torrent {
             /* Retrieve total # of requests. */
             const numRequests = Object.keys(this._requestMgr).length
 
-            console.info(`Added new BLOCK request [ ${dataId} ] of ${numRequests}`)
+            console.info(`Added new BLOCK request [ ${_dataId} ] of ${numRequests}`)
         }
+
+        /* Set data id. */
+        const dataId = _dataId
+
+        /* Set request manager. */
+        const requestMgr = this._requestMgr[dataId]
 
         /* Set success flag. */
         const success = true
 
-        /* Set request info. */
-        const requestInfo = this._requestMgr[dataId]
-
         /* Build (data) info. */
-        const data = { dataId, requestInfo, success }
+        const data = { dataId, requestMgr, success }
 
         /* Emit message. */
         this.zeroEvent.emit('response', _requestId, data)
@@ -637,56 +735,3 @@ class Torrent {
 }
 
 module.exports = Torrent
-
-// /* Retrieve the torrent's files. */
-// const files = torrentInfo['files']
-//
-// /* Initialize file counter. */
-// let fileCounter = 0
-//
-// /* Process the individual files. */
-// for (let file of files) {
-//     /* Convert file path to (readable) string. */
-//     const filepath = Buffer.from(file.path[0], 'hex').toString()
-//
-//     body += `<br />    #${++fileCounter}: ${filepath} { size: ${file.length} bytes }`
-// }
-//
-// /* Retrieve torrent blocks. */
-// const blocks = Buffer.from(torrentInfo['pieces'])
-// body += '<br /><hr />'
-// body += `<br />    ALL Hash Blocks { length: ${blocks.length} } => ${blocks.toString('hex')}`
-//
-// /* Calculate the number of hashes/blocks. */
-// const numBlocks = blocks.length / BLOCK_HASH_LENGTH
-// body += '<br /><hr />'
-// body += `<br />    # Total Blocks : ${numBlocks}`
-//
-// /* Retrieve the block length. */
-// const blockLength = parseInt(torrentInfo['piece length'])
-// body += '<br /><hr />'
-// body += `<br />    Block Length   : ${blockLength} bytes`
-//
-// const numBlockChunks = parseInt(blockLength / Piece.BLOCK_LENGTH)
-// body += '<br /><hr />'
-// body += `<br />    # of chunks per block [ ${numBlockChunks} ]`
-// body += '<br /><hr />'
-//
-// /* Process the hash list. */
-// for (let i = 0; i < numBlocks; i++) {
-//     /* Calculate the hash start. */
-//     const start = (i * BLOCK_HASH_LENGTH)
-//
-//     /* Calculate the hash end. */
-//     const end = (i * BLOCK_HASH_LENGTH) + BLOCK_HASH_LENGTH
-//
-//     /* Retrieve the block's hash. */
-//     const buf = blocks.slice(start, end)
-//
-//     /* Convert buffer to hex. */
-//     const hash = Buffer.from(buf).toString('hex')
-//     body += `<br />        Hash Block #${i}: ${hash}`
-//
-//     /* Set block hash. */
-//     blockHashes[i] = hash
-// }
