@@ -303,6 +303,9 @@ class Torrent {
 
     /**
      * Handle Metadata
+     *
+     * NOTE Metadata is received bencoded.
+     *      https://en.wikipedia.org/wiki/Bencode
      */
     _handleMetadata(_infoHash, _metadata) {
         // console.log('GOT METADATA',
@@ -319,23 +322,39 @@ class Torrent {
         const torrentInfo = decoded['info']
         // console.log('Torrent INFO', torrentInfo)
 
+        /* Encode torrent info. */
+        const encoded = bencode.encode(torrentInfo)
+        // console.log('Encoded torrent info', encoded)
+
+        /* Calculate verification hash (from encoded metadata). */
+        const verificationHash = _utils.calcInfoHash(encoded)
+        console.info(`Calculated the verification hash [ ${verificationHash} ]`)
+
         /* Set info hash. */
         const infoHash = Buffer.from(_infoHash).toString('hex')
 
-        /* Add torrent metadata to manager. */
-        this._addInfo(infoHash, torrentInfo)
+        /* Validate verficiation hash. */
+        if (verificationHash === infoHash) {
+            /* Add torrent metadata to manager. */
+            this._addInfo(infoHash, torrentInfo)
 
-        /* Set success flag. */
-        const success = true
+            /* Set data id. */
+            const dataId = `${infoHash}:torrent`
 
-        /* Set data id. */
-        const dataId = `${infoHash}:torrent`
+            /* Set metadata. */
+            const metadata = _metadata
 
-        /* Build (data) info. */
-        const data = { dataId, infoHash, torrentInfo, success }
+            /* Set success flag. */
+            const success = true
 
-        /* Emit message. */
-        this.zeroEvent.emit('response', null, data)
+            /* Build (data) info. */
+            const data = { dataId, infoHash, metadata, success }
+
+            /* Emit message. */
+            this.zeroEvent.emit('response', null, data)
+        } else {
+            console.error(`Oops! This metadata DOES NOT validate to [ ${infoHash} ]`)
+        }
     }
 
     /**
