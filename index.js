@@ -216,9 +216,9 @@ zeroEvent.on('msg', (_conn, _msg) => {
         /* Send message to ALL active connections. */
         // FIXME How can we BETTER manage message delivery when there
         //       is no explicit connection provided??
-        for (let conn in connMgr) {
+        for (let connId in connMgr) {
             /* Send message. */
-            _sendMessage(_getConnection(conn), _msg)
+            _sendMessage(_getConnection(connId), _msg)
         }
     }
 })
@@ -337,7 +337,7 @@ const _initWebSocketServer = () => {
     })
 
     /* Initialize SockJS (fallback) URL. */
-    const sockjs_url = './js/sockjs.min.js'
+    const sockjs_url = 'https://cdn.0net.io/libs/sockjs-client/1.1.4/js/sockjs.min.js'
 
     /* Craate SockJS (WebSocket) server. */
     const ws = sockjs.createServer({ sockjs_url })
@@ -529,7 +529,7 @@ const _initPexServer = () => {
         //       at _errnoException (util.js:992:11)
         //       at TCP.onread (net.js:618:25) code: 'ECONNRESET', errno: 'ECONNRESET', syscall: 'read' }
         _socket.on('error', (_err) => {
-            console.error('Oops! PEER SOCKET connection had an error', _err)
+            console.error('Ugh! PEER SOCKET connection had an error', _err)
         })
 
         /* Emit socket for new PEX connection. */

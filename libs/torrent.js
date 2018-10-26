@@ -27,9 +27,11 @@ class Torrent {
 
         /* Bind private methods. */
         this._addChunk = this._addChunk.bind(this)
-        this._addInfo = this._addInfo.bind(this)
+        this._addMetadata = this._addMetadata.bind(this)
         this._addWire = this._addWire.bind(this)
+        this._findBlockIndex = this._findBlockIndex.bind(this)
         this._getInfoByHash = this._getInfoByHash.bind(this)
+        this._getMetadataByHash = this._getMetadataByHash.bind(this)
         this._getNextRequest = this._getNextRequest.bind(this)
         this._getRequestById = this._getRequestById.bind(this)
         this._getWireId = this._getWireId.bind(this)
@@ -91,20 +93,22 @@ class Torrent {
     }
 
     /**
-     * Add Torrent Info to Information Manager
+     * Add Torrent Metadata to Information Manager
+     *
+     * NOTE Metadata is in bencode format.
      */
-    _addInfo(_infoHash, _torrentInfo) {
+    _addMetadata(_infoHash, _metadata) {
         console.log('ADDING metadata to manager.')
 
         /* Validate the info. */
-        if (!_infoHash || !_torrentInfo) {
+        if (!_infoHash || !_metadata) {
             throw new Error(
-                'Looks like we have a problem adding METADATA', _infoHash, _torrentInfo)
+                'Looks like we have a problem adding METADATA', _infoHash, _metadata)
         }
 
-        if (!this._getInfoByHash(_infoHash)) {
+        if (!this._getMetadataByHash(_infoHash)) {
             /* Add new info. */
-            this._infoMgr[_infoHash] = _torrentInfo
+            this._infoMgr[_infoHash] = _metadata
 
             console.info(`ADDED new info for [ ${_infoHash} ]`)
         }
@@ -118,6 +122,8 @@ class Torrent {
      * NOTE Wire Id is the same as Peer Id.
      *      - peerId       : 2d5554333533532dcead15ab366f53c9235e00ad
      *      - peerIdBuffer : <Buffer 2d 55 54 33 35 33 53 2d ce ad 15 ab 36 6f 53 c9 23 5e 00 ad>
+     *
+     * NOTE `blocks` are populated from `bitfield` and `have` announcements.
      */
     _addWire(_wire, _wireId, _infoHash, _extensions) {
         /* Validate the wire. */
@@ -131,8 +137,7 @@ class Torrent {
             this._wireMgr[_wireId] = {
                 infoHash: _infoHash,
                 extensions: _extensions,
-                // currentBlockIndex: 0,
-                // currentChunkIndex: 0,
+                blocks: [],
                 dataAdded:  new Date().toJSON(),
                 lastUpdate: new Date().toJSON()
             }
@@ -145,9 +150,44 @@ class Torrent {
     }
 
     /**
+     * Find a Block Index
+     *
+     * NOTE Searches all availalbe wires for the requested block index.
+     */
+    _findBlockIndex(_blockIndex) {
+        // TODO Search this._wireMgr
+
+        // NOTE Should sort based on the reputation/quality of the wire.
+    }
+
+    /**
      * Retrieve Info by Hash
      */
     _getInfoByHash(_infoHash) {
+        /* Retrieve (encoded) metadata. */
+        const encoded = this._getMetadataByHash(_infoHash)
+
+        /* Validate metadata. */
+        if (!encoded) {
+            return null
+        }
+
+        /* Convert the metadata to a buffer. */
+        const metadata = Buffer.from(encoded, 'hex')
+
+        /* Decode the metadata buffer using bencode. */
+        const decoded = bencode.decode(metadata)
+
+        /* Retrieve the torrent info. */
+        const torrentInfo = decoded['info']
+
+        return torrentInfo
+    }
+
+    /**
+     * Retrieve Metadata by Hash
+     */
+    _getMetadataByHash(_infoHash) {
         return this._infoMgr[_infoHash]
     }
 
@@ -166,10 +206,16 @@ class Torrent {
 
         // console.log('TORRENT FILES', typeof torrentInfo['files'], torrentInfo['files'])
         /* Calculate total torrent size. */
-        const torrentSize = torrentInfo['files'].reduce((_acc, _cur) => {
-            // console.log('REDUCE', _acc, typeof _cur, _cur, _cur.length)
-            return (_acc + _cur.length)
-        }, 0)
+        // const torrentSize = torrentInfo['files'].reduce((_acc, _cur) => {
+        //     // console.log('REDUCE', _acc, typeof _cur, _cur, _cur.length)
+        //     return (_acc + _cur.length)
+        // }, 0)
+        const torrentSize = torrentInfo['files'] ?
+            torrentInfo['files'].map(file => file.length).reduce((a, b) => a + b) :
+            torrentInfo['length']
+
+        // NOTE If size is larger than 32-bit integer, use bignum
+        //      eg bignum.toBuffer(torrentSize, {size: 8})
         console.log('CALCULATED TORRENT SIZE', torrentSize)
 
         /* Retrieve torrent blocks. */
@@ -294,7 +340,7 @@ class Torrent {
      * Verify Metadata Is Needed
      */
     _needMetadata(_infoHash) {
-        if (this._getInfoByHash(_infoHash)) {
+        if (this._getMetadataByHash(_infoHash)) {
             return false
         } else {
             return true
@@ -311,11 +357,11 @@ class Torrent {
         // console.log('GOT METADATA',
         //     metadata, Buffer.from(metadata, 'hex').toString())
 
-        /* Convert the metadata to a buffer. */
-        const metadata = Buffer.from(_metadata, 'hex')
+        /* Set metadata. */
+        const metadata = _metadata
 
         /* Decode the metadata buffer using bencode. */
-        const decoded = bencode.decode(metadata)
+        const decoded = bencode.decode(Buffer.from(metadata, 'hex'))
         // console.log('DECODED (RAW)', typeof decoded, decoded)
 
         /* Retrieve the torrent info. */
@@ -336,13 +382,10 @@ class Torrent {
         /* Validate verficiation hash. */
         if (verificationHash === infoHash) {
             /* Add torrent metadata to manager. */
-            this._addInfo(infoHash, torrentInfo)
+            this._addMetadata(infoHash, metadata)
 
             /* Set data id. */
             const dataId = `${infoHash}:torrent`
-
-            /* Set metadata. */
-            const metadata = _metadata
 
             /* Set success flag. */
             const success = true
@@ -486,6 +529,9 @@ class Torrent {
         /* Set info hash. */
         const infoHash = _infoHash
 
+        /* Set data id. */
+        const dataId = `${Buffer.from(infoHash).toString('hex')}:torrent`
+
         console.info(
             `Now requesting peers for [ ${Buffer.from(infoHash).toString('hex')} ]`)
 
@@ -573,6 +619,18 @@ class Torrent {
 
                     /* Request metadata from peer. */
                     wire.ut_metadata.fetch()
+                } else {
+                    /* Retrieve metadata. */
+                    const metadata = this._getMetadataByHash(_infoHash)
+
+                    /* Set success flag. */
+                    const success = true
+
+                    /* Build (data) info. */
+                    const data = { dataId, infoHash, metadata, success }
+
+                    /* Emit message. */
+                    this.zeroEvent.emit('response', requestId, data)
                 }
 
                 /* Initialize DHT support flag. */
@@ -592,11 +650,14 @@ class Torrent {
                 // console.log('Bitfield BUFFER', bitfield.buffer)
 
                 // TODO Utilize bitfield to quickly assess our data requests
+                //      Iterate through all bits and add to `wireMgr` blocks
             })
 
             /* Block index NOTIFICATION (by peer). */
             wire.on('have', _blockIndex => {
                 // console.info(`HAVE [ ${_blockIndex} ] [ THEM: ${wire.peerInterested} ] [ US: ${wire.amInterested} ]`)
+
+                // TODO We need to track which blocks this peer is seeding
 
                 // if (wire.peerPieces.get(this.blockIndex)) {
                 //     /* Announce our interest in this block. */
@@ -689,6 +750,9 @@ class Torrent {
      * Request Block Index
      *
      * NOTE Data Id is {Info hash}:{Block Index}
+     *
+     * NOTE If this request is already handled (and still in cache),
+     *      we instantly return the results to the client.
      */
     requestBlock(_requestId, _dataId) {
         /* Validate data id. */
@@ -742,14 +806,17 @@ class Torrent {
         /* Set request manager. */
         const requestMgr = this._requestMgr[dataId]
 
-        /* Set success flag. */
-        const success = true
+        /* Validate a "completed" block. */
+        if (requestMgr.numChunks === Object.keys(requestMgr.chunks).length) {
+            /* Set success flag. */
+            const success = true
 
-        /* Build (data) info. */
-        const data = { dataId, requestMgr, success }
+            /* Build (data) info. */
+            const data = { dataId, requestMgr, success }
 
-        /* Emit message. */
-        this.zeroEvent.emit('response', _requestId, data)
+            /* Emit message. */
+            this.zeroEvent.emit('response', _requestId, data)
+        }
     }
 }
 

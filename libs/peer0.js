@@ -18,6 +18,7 @@ class Peer0 {
 
         /* Initialize connection parameters. */
         this._conn = null
+        this._isReady = null
         this._peerId = null
         this._address = _address
         this._ip = _address.split(':')[0]
@@ -45,6 +46,10 @@ class Peer0 {
 
     get conn() {
         return this._conn
+    }
+
+    get isReady() {
+        return this._isReady
     }
 
     get address() {
@@ -104,6 +109,10 @@ class Peer0 {
 
     set conn(_conn) {
         this._conn = _conn
+    }
+
+    set isReady(_status) {
+        this._isReady = _status
     }
 
     set peerId(_peerId) {
@@ -178,164 +187,6 @@ class Peer0 {
         this.conn.write(this._encode(pkg), () => {
             console.log('sent ping', pkg)
         })
-    }
-
-    /**
-     * Request Zeronet File
-     */
-    requestFile(_dest, _innerPath, _location) {
-        /* Initialize a NEW client connection/handshake (if needed). */
-        const promise = new Promise((_resolve, _reject) => {
-            /* Initialize promise managers. */
-            this.resolve = _resolve
-            this.reject = _reject
-        })
-
-        // console.log('STARTING FILE REQUEST')
-
-        /* Initialize request details. */
-        const cmd = 'getFile'
-        const site = _dest
-        const innerPath = _innerPath
-        const location = _location
-
-        /* Update class managers. */
-        this.site = site
-        this.innerPath = innerPath
-
-        /* Build a request object (for internal tracking). */
-        const request = { cmd, site, innerPath, location }
-
-        /* Add the request to the pool and receive a new request id. */
-        const req_id = this._addRequest(request)
-
-        const inner_path = innerPath
-
-        const params = { site, inner_path, location }
-
-        const pkg = { cmd, req_id, params }
-        // console.log('SENDING PACKAGE', pkg)
-
-        /* Send request. */
-        this.conn.write(_utils.encode(pkg), () => {
-            console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
-        })
-
-        return promise
-    }
-
-    /**
-     * Initialize Zeronet Peer
-     *
-     * Performs the standard handshaking process.
-     */
-    init() {
-        /* Localize this. */
-        const self = this
-
-        /* Initialize peer id. */
-        this.peerId = Buffer.from(_utils.getPeerId('US'))
-
-        /* Initailize promise managers. */
-        let resolve = null
-        let reject = null
-
-        /* Initialize a NEW client connection/handshake (if needed). */
-        const promise = new Promise((_resolve, _reject) => { // eslint-disable-line promise/param-names
-            /* Initialize promise managers. */
-            resolve = _resolve
-            reject = _reject
-        })
-
-        /* Open connection to peer. */
-        this.conn = net.createConnection(this.port, this.ip, () => {
-            console.info(`Opened new connection [ ${this.ip}:${this.port} ]`)
-
-            /* Handle connection errors. */
-            this.conn.on('error', (_err) => {
-                console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
-            })
-
-            /* Set command. */
-            const cmd = 'handshake'
-
-            /* Set request. */
-            const request = { cmd }
-
-            /* Generate a new request id. */
-            const reqId = this._addRequest(request)
-
-            /* Initialize handshake. */
-            const handshake = _handshake(this.ip, this.port, this.peerId, reqId)
-
-            /* Encode handshake package. */
-            const pkg = _utils.encode(handshake)
-
-            /* Send package. */
-            this.conn.write(pkg)
-        })
-
-        /* Handle closed connection. */
-        this.conn.on('close', () => {
-            console.info(`Connection closed with ${this.address}`)
-        })
-
-        /* Handle incoming data. */
-        this.conn.on('data', async (_data) => {
-            // console.log('INCOMING DATA', _data)
-
-            /* Retrieve response from data handler. */
-            const data = await self._handleIncomingData(_data)
-                .catch((_err) => console.error('ERROR: handleIncomingData', _err))
-
-            /* Validate data. */
-            if (!data) {
-                throw new Error('Data failed to be returned from handler.')
-            }
-
-            /* Handle handshakes. */
-            if (data.success && data.action == 'HANDSHAKE') {
-                return resolve(data)
-
-                // /* Set success flag. */
-                // const success = true
-                //
-                // /* Build (data) message. */
-                // const data = { identity, success }
-                //
-                // /* Emit message. */
-                // return _zeroEvent.emit('response', _requestId, data)
-            }
-
-            /* Verify length of data body. */
-            if (data.decoded && data.decoded.body) {
-                const body = data.decoded.body
-                console.log(`Data body length is [ ${body.length} ]`)
-                console.log(`Data body hash is [ ${_utils.calcFileHash(body)} ]`)
-
-                /* Resolve (this object's) promise. */
-                return self.resolve(body)
-
-                // /* Set success flag. */
-                // const success = true
-                //
-                // /* Build (data) message. */
-                // const data = { identity, success }
-                //
-                // /* Emit message. */
-                // return _zeroEvent.emit('response', _requestId, data)
-            }
-
-            /* Check for overload. */
-            if (data.overload && data.location) {
-                // console.log('CONTINUE WITH DATA REQUEST', _utils.innerPath, data.location)
-                /* Continue with data request. */
-                requestFile(self.site, self.innerPath, data.location)
-            }
-        })
-
-        /* Return the promise. */
-        return promise
     }
 
     _handleIncomingData(_data) {
@@ -519,6 +370,9 @@ class Peer0 {
                     action: 'HANDSHAKE'
                 }
 
+                /* Set ready flag. */
+                this.isReady = true
+
                 resolve(pkg)
             }
 
@@ -576,6 +430,148 @@ class Peer0 {
         }
 
         /* Return the promise. */
+        return promise
+    }
+
+    /**
+     * Initialize Zeronet Peer
+     *
+     * Performs the standard handshaking process.
+     */
+    init() {
+        /* Localize this. */
+        const self = this
+
+        /* Initialize peer id. */
+        this.peerId = Buffer.from(_utils.getPeerId('US'))
+
+        /* Initailize promise managers. */
+        let resolve = null
+        let reject = null
+
+        /* Initialize a NEW client connection/handshake (if needed). */
+        const promise = new Promise((_resolve, _reject) => { // eslint-disable-line promise/param-names
+            /* Initialize promise managers. */
+            resolve = _resolve
+            reject = _reject
+        })
+
+        /* Open connection to peer. */
+        this.conn = net.createConnection(this.port, this.ip, () => {
+            console.info(`Opened new connection [ ${this.ip}:${this.port} ]`)
+
+            /* Handle connection errors. */
+            this.conn.on('error', (_err) => {
+                console.error(`Error detected with ${this.address} [ ${_err.message} ]`, )
+            })
+
+            /* Set command. */
+            const cmd = 'handshake'
+
+            /* Set request. */
+            const request = { cmd }
+
+            /* Generate a new request id. */
+            const reqId = this._addRequest(request)
+
+            /* Initialize handshake. */
+            const handshake = _handshake(this.ip, this.port, this.peerId, reqId)
+
+            /* Encode handshake package. */
+            const pkg = _utils.encode(handshake)
+
+            /* Send package. */
+            this.conn.write(pkg)
+        })
+
+        /* Handle closed connection. */
+        this.conn.on('close', () => {
+            console.info(`Connection closed with ${this.address}`)
+
+            this.isReady = false
+        })
+
+        /* Handle incoming data. */
+        this.conn.on('data', async (_data) => {
+            // console.log('INCOMING DATA', _data)
+
+            /* Retrieve response from data handler. */
+            const data = await self._handleIncomingData(_data)
+                .catch((_err) => console.error('ERROR: handleIncomingData', _err))
+
+            /* Validate data. */
+            if (!data) {
+                throw new Error('Data failed to be returned from handler.')
+            }
+
+            /* Handle handshakes. */
+            if (data.success && data.action === 'HANDSHAKE') {
+                return resolve(data)
+            }
+
+            /* Verify length of data body. */
+            if (data.decoded && data.decoded.body) {
+                const body = data.decoded.body
+                console.log(`Data body length is [ ${body.length} ]`)
+                console.log(`Data body hash is [ ${_utils.calcFileHash(body)} ]`)
+
+                /* Resolve (this object's) promise. */
+                return self.resolve(body)
+            }
+
+            /* Check for overload. */
+            if (data.overload && data.location) {
+                // console.log('CONTINUE WITH DATA REQUEST', _utils.innerPath, data.location)
+                /* Continue with data request. */
+                requestFile(self.site, self.innerPath, data.location)
+            }
+        })
+
+        /* Return the promise. */
+        return promise
+    }
+
+    /**
+     * Request Zeronet File
+     */
+    requestFile(_dest, _innerPath, _location) {
+        /* Initialize a NEW client connection/handshake (if needed). */
+        const promise = new Promise((_resolve, _reject) => {
+            /* Initialize promise managers. */
+            this.resolve = _resolve
+            this.reject = _reject
+        })
+
+        // console.log('STARTING FILE REQUEST')
+
+        /* Initialize request details. */
+        const cmd = 'getFile'
+        const site = _dest
+        const innerPath = _innerPath
+        const location = _location
+
+        /* Update class managers. */
+        this.site = site
+        this.innerPath = innerPath
+
+        /* Build a request object (for internal tracking). */
+        const request = { cmd, site, innerPath, location }
+
+        /* Add the request to the pool and receive a new request id. */
+        const req_id = this._addRequest(request)
+
+        const inner_path = innerPath
+
+        const params = { site, inner_path, location }
+
+        const pkg = { cmd, req_id, params }
+        // console.log('SENDING PACKAGE', pkg)
+
+        /* Send request. */
+        this.conn.write(_utils.encode(pkg), () => {
+            console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
+        })
+
         return promise
     }
 }

@@ -3,28 +3,65 @@ const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
 const Peer0 = require('../libs/peer0')
 
+/* Initialize peer manager. */
+const peerMgr = {}
+
 /**
  * Request Zeronet File
  */
 const _requestFile = function (_zeroEvent, _peer, _dest, _innerPath) {
     return new Promise(async (_resolve, _reject) => {
-        /* Create new Peer. */
-        const peer0 = new Peer0(_zeroEvent, _peer)
+        /* Initialize connection. */
+        let conn = null
 
-        /* Open a new connection. */
-        const conn = await peer0.init()
-            .catch(_reject)
+        /* Initialize peer. */
+        let peer = null
 
-        /* Validate handshake. */
-        if (conn && conn.action === 'HANDSHAKE') {
-            /* Start discovery of peers. */
-            const fileData = await peer0.requestFile(_dest, _innerPath, 0)
+        /* Search for available (READY) connections. */
+        for (let address in peerMgr) {
+            /* Set peer. */
+            peer = peerMgr[address]
+
+            if (peer['dest'] === _dest && peer['conn'].isReady) {
+                /* Set the active connection. */
+                conn = peer['conn']
+
+                console.info(`Found READY connection from [ ${address} ]`)
+
+                /* We're done! */
+                break
+            }
+        }
+
+        /* Validate connection. */
+        if (!conn) {
+            /* Create new (Peer0) connection. */
+            conn = new Peer0(_zeroEvent, _peer)
+
+            /* Initialize a new peer connection. */
+            const init = await conn.init()
                 .catch(_reject)
 
-            _resolve(fileData)
-        } else {
-            _reject(`Handshake with ${_peer} failed!`)
+            /* Validate initialization. */
+            if (init && init.action === 'HANDSHAKE') {
+                /* Set destination. */
+                const dest = _dest
+
+                console.info(`[ ${conn.address} ] is ready [ ${conn.isReady} ]`)
+
+                /* Add to peer manager. */
+                // NOTE Address includes ip and port.
+                peerMgr[conn.address] = { dest, conn }
+            } else {
+                return _reject(`Handshake with [ ${_peer} ] failed!`)
+            }
         }
+
+        /* Request file data from active connection. */
+        const fileData = await conn.requestFile(_dest, _innerPath, 0)
+            .catch(_reject)
+
+        _resolve(fileData)
     })
 }
 
@@ -113,24 +150,6 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
             success = true
         } else {
             success = false
-        }
-
-        /* Initialize file extension. */
-        let fileExt = null
-
-        if (innerPath.indexOf('.') !== -1) {
-            /* Retrieve the file extention. */
-            fileExt = innerPath.split('.').pop()
-        }
-
-        /* Decode body (if needed). */
-        switch (fileExt.toUpperCase()) {
-        case 'HTM':
-        case 'HTML':
-            body = body.toString()
-            break
-        default:
-            // NOTE Leave as buffer (for binary files).
         }
 
         /* Build (data) message. */
