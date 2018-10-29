@@ -1,69 +1,155 @@
+// const Bottleneck = require('bottleneck')
+
 /* Initialize local libraries. */
-const _utils = require('../libs/_utils')
 const Discovery = require('../libs/discovery')
 const Peer0 = require('../libs/peer0')
+const _utils = require('../libs/_utils')
 
 /* Initialize peer manager. */
 const peerMgr = {}
 
+// const limiter = new Bottleneck({
+//     maxConcurrent: 1,
+//     minTime: 500
+// })
+
+/**
+ * Handle Request Queue
+ */
+const _handleRequestQueue = async function (_zeroEvent, _peer) {
+    /* Set peer. */
+    const peer = _peer
+
+    /* Set conn. */
+    const conn = peer.conn
+
+    /* Set queue. */
+    const queue = peer.queue
+
+    if (queue.length > 0) {
+        /* Pull the next request (out of queue). */
+        const request = queue.shift(queue)
+
+        console.log('NEXT REQUEST', request)
+
+        /* Set request id. */
+        const requestId = request.requestId
+
+        /* Set destination. */
+        const dest = request.dest
+
+        /* Set inner path. */
+        const innerPath = request.innerPath
+
+        /* Initialize body. */
+        // let body = null
+
+        /* Request body (file data) from active connection. */
+        const body = await conn.requestFile(dest, innerPath, 0)
+            .catch((_err) => {
+                console.error(`Oops! Looks like ${dest} was a dud, try again...`, _err)
+            })
+
+        // _resolve(fileData)
+
+        /* Validate results. */
+        if (body) {
+        // if (filtered && filtered.length > 0 && body) {
+            // body = fileData
+
+            success = true
+        } else {
+            success = false
+        }
+
+        /* Build (data) message. */
+        data = { dest, innerPath, body, success }
+
+        /* Emit message. */
+        _zeroEvent.emit('response', requestId, data)
+
+        /* Handle request queue. */
+        _handleRequestQueue(_zeroEvent, peerMgr[conn.address])
+    }
+}
+
 /**
  * Request Zeronet File
  */
-const _requestFile = function (_zeroEvent, _peer, _dest, _innerPath) {
-    return new Promise(async (_resolve, _reject) => {
-        /* Initialize connection. */
-        let conn = null
+const _requestFile = async function (_zeroEvent, _peer, _requestId, _dest, _innerPath) {
+    // return new Promise(async (_resolve, _reject) => {
+    /* Initialize connection. */
+    let conn = null
 
-        /* Initialize peer. */
-        let peer = null
+    /* Initialize peer. */
+    let peer = null
 
-        /* Search for available (READY) connections. */
-        for (let address in peerMgr) {
-            /* Set peer. */
-            peer = peerMgr[address]
+    /* Set request id. */
+    const requestId = _requestId
 
-            if (peer['dest'] === _dest && peer['conn'].isReady) {
-                /* Set the active connection. */
-                conn = peer['conn']
+    /* Set destination. */
+    const dest = _dest
 
-                console.info(`Found READY connection from [ ${address} ]`)
+    /* Set inner path. */
+    const innerPath = _innerPath
 
-                /* We're done! */
-                break
-            }
+    /* Search for available (READY) connections. */
+    for (let address in peerMgr) {
+        /* Set peer. */
+        peer = peerMgr[address]
+
+        if (peer['dest'] === _dest && peer['conn'].isReady) {
+            /* Set the active connection. */
+            conn = peer['conn']
+
+            console.info(`Found READY connection from [ ${address} ]`)
+
+            /* We're done! */
+            break
         }
+    }
 
-        /* Validate connection. */
-        if (!conn) {
-            /* Create new (Peer0) connection. */
-            conn = new Peer0(_zeroEvent, _peer)
+    /* Validate connection. */
+    if (!conn) {
+        /* Create new (Peer0) connection. */
+        conn = new Peer0(_zeroEvent, _peer)
 
-            /* Initialize a new peer connection. */
-            const init = await conn.init()
-                .catch(_reject)
+        /* Initialize a new peer connection. */
+        const init = await conn.init()
+            .catch((_err) => {
+                console.error('ERROR: Peer Initialization', _err, _peer)
+            })
 
-            /* Validate initialization. */
-            if (init && init.action === 'HANDSHAKE') {
-                /* Set destination. */
-                const dest = _dest
+        /* Validate initialization. */
+        if (init && init.action === 'HANDSHAKE') {
+            console.info(`[ ${conn.address} ] is ready [ ${conn.isReady} ]`)
 
-                console.info(`[ ${conn.address} ] is ready [ ${conn.isReady} ]`)
+            /* Initialize request queue. */
+            const queue = []
 
-                /* Add to peer manager. */
-                // NOTE Address includes ip and port.
-                peerMgr[conn.address] = { dest, conn }
-            } else {
-                return _reject(`Handshake with [ ${_peer} ] failed!`)
-            }
+            /* Add to peer manager. */
+            // NOTE Address includes ip and port.
+            peerMgr[conn.address] = { conn, dest, queue }
+        } else {
+            return _reject(`Handshake with [ ${_peer} ] failed!`)
         }
+    }
 
-        /* Request file data from active connection. */
-        const fileData = await conn.requestFile(_dest, _innerPath, 0)
-            .catch(_reject)
+    /* Add to peer's (request) queue. */
+    peerMgr[conn.address]['queue'].push({ requestId, conn, dest, innerPath })
 
-        _resolve(fileData)
-    })
+    /* Request file data from active connection. */
+    // const fileData = await _conn.requestFile(_dest, _innerPath, 0)
+    //     .catch(_reject)
+
+    // _resolve(fileData)
+
+    /* Handle request queue. */
+    _handleRequestQueue(_zeroEvent, peerMgr[conn.address])
+    // })
 }
+
+// const wrapped = limiter.wrap(_requestFile)
 
 const _handler = async function (_zeroEvent, _requestId, _data) {
     // console.log('RECEIVED GETFILE REQUEST', _data)
@@ -109,25 +195,28 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
         /* Initialize peers. */
         let peers = null
 
-        console.log('Querying peers for destination', dest)
+        // console.log('Querying peers for destination', dest)
 
         /* Calculate info hash. */
         infoHash = Buffer.from(_utils.calcInfoHash(dest), 'hex')
 
         /* Create new Discovery. */
-        const discovery = new Discovery(infoHash)
+        // const discovery = new Discovery(infoHash)
 
         /* Start discovery of peers. */
-        peers = await discovery.startTracker()
+        // peers = await discovery.startTracker()
         // console.log('FOUND THESE PEERS', peers)
 
-        /* Filter peers. */
-        const filtered = peers.filter((_peer) => {
-            /* Retrieve port. */
-            const port = parseInt(_peer.split(':')[1])
+        /* Initialize filtered. */
+        let filtered = []
 
-            return port > 1
-        })
+        /* Filter peers. */
+        // filtered = peers.filter((_peer) => {
+        //     /* Retrieve port. */
+        //     const port = parseInt(_peer.split(':')[1])
+        //
+        //     return port > 1
+        // })
 
         /* Set inner path. */
         const innerPath = request
@@ -140,23 +229,24 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
 
         console.log(`Requesting ${innerPath} for ${dest} via ${filtered[0]}`);
 
-        body = await _requestFile(_zeroEvent, filtered[0], dest, innerPath)
-            .catch((err) => {
-                console.error(`Oops! Looks like ${dest} was a dud, try again...`)
+        // body = await wrapped(_zeroEvent, filtered[0], dest, innerPath)
+        body = await _requestFile(_zeroEvent, filtered[0], _requestId, dest, innerPath)
+            .catch((_err) => {
+                console.error(`Oops! Looks like ${dest} was a dud, try again...`, _err)
             })
 
-        /* Validate results. */
-        if (filtered && filtered.length > 0 && body) {
-            success = true
-        } else {
-            success = false
-        }
-
-        /* Build (data) message. */
-        data = { dest, innerPath, body, success }
-
-        /* Emit message. */
-        _zeroEvent.emit('response', _requestId, data)
+        // /* Validate results. */
+        // if (filtered && filtered.length > 0 && body) {
+        //     success = true
+        // } else {
+        //     success = false
+        // }
+        //
+        // /* Build (data) message. */
+        // data = { dest, innerPath, body, success }
+        //
+        // /* Emit message. */
+        // _zeroEvent.emit('response', _requestId, data)
     } else if (infoHash) {
         /* Validate request. */
         if (request === 'torrent') {

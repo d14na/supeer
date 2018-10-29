@@ -201,9 +201,7 @@ class Peer0 {
             this.payload = _data
         }
 
-        // console.log('INCOMING =>', _data.length, msg, _data.toString())
-        // console.log('msg location', msg['location'])
-        // console.log('incoming msg', msg, _data.toString())
+        // console.log('INCOMING =>', _data.length, _data.toString(), _data.toString('hex'), '\n---\n')
 
         const _arrayMatch = (_arr1, _arr2) => {
             if (_arr1.length === _arr2.length && _arr1.every((u, i) => {
@@ -248,11 +246,13 @@ class Peer0 {
         ***********************************************************************/
 
         /* Initialize (msgpack) ending hash. */
+        const sizeEndingXX = Buffer.from('a473697a65', 'hex')
         const sizeEndingCC = Buffer.from('a473697a65cc', 'hex')
         const sizeEndingCD = Buffer.from('a473697a65cd', 'hex')
         const sizeEndingCE = Buffer.from('a473697a65ce', 'hex')
 
         /* Retrieve the ending bytes. */
+        const sizeCheckXX = Buffer.from(this.payload.slice(-6, -1))
         const sizeCheckCC = Buffer.from(this.payload.slice(-7, -1))
         const sizeCheckCD = Buffer.from(this.payload.slice(-8, -2))
         const sizeCheckCE = Buffer.from(this.payload.slice(-10, -4))
@@ -263,6 +263,7 @@ class Peer0 {
 
         /* Match the endings for end-of-file detection. */
         if (
+            _arrayMatch(sizeEndingXX, sizeCheckXX) ||
             _arrayMatch(sizeEndingCC, sizeCheckCC) ||
             _arrayMatch(sizeEndingCD, sizeCheckCD) ||
             _arrayMatch(sizeEndingCE, sizeCheckCE)
@@ -569,7 +570,7 @@ class Peer0 {
 
         /* Send request. */
         this.conn.write(_utils.encode(pkg), () => {
-            console.log(`Sent request for [ ${inner_path} @ ${location} ]`)
+            console.info(`Sent request [ #${req_id} ] for [ ${inner_path} @ ${location} ]`)
         })
 
         return promise
