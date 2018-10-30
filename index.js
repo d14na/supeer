@@ -403,6 +403,9 @@ const _initWebSocketServer = () => {
                 return console.error('Could not retrieve connection id for:', _data)
             }
 
+            // FIXME Implement a rate limiter
+            // e.g. bottleneck
+
             /* Set UNIVERSAL request id. */
             // NOTE Client's connection id is prepended to make each
             //      client's request id unique within 0PEN.

@@ -8,6 +8,9 @@ const _utils = require('../libs/_utils')
 /* Initialize peer manager. */
 const peerMgr = {}
 
+/* Initialize busy flag. */
+let isBusy = false
+
 // const limiter = new Bottleneck({
 //     maxConcurrent: 1,
 //     minTime: 500
@@ -17,20 +20,19 @@ const peerMgr = {}
  * Handle Request Queue
  */
 const _handleRequestQueue = async function (_zeroEvent, _peer) {
-    /* Set peer. */
-    const peer = _peer
-
+    console.log('HANDLE REQUEST QUEUE', _peer.queue.length);
     /* Set conn. */
-    const conn = peer.conn
+    const conn = _peer.conn
 
-    /* Set queue. */
-    const queue = peer.queue
+    if (_peer.queue.length > 0 && !isBusy) {
+        /* Set busy flag. */
+        isBusy = true
 
-    if (queue.length > 0) {
         /* Pull the next request (out of queue). */
-        const request = queue.shift(queue)
+        const request = _peer.queue.shift()
+        // const request = queue.shift()
 
-        console.log('NEXT REQUEST', request)
+        console.log('NEXT REQUEST', request.requestId, request.innerPath)
 
         /* Set request id. */
         const requestId = request.requestId
@@ -50,6 +52,8 @@ const _handleRequestQueue = async function (_zeroEvent, _peer) {
                 console.error(`Oops! Looks like ${dest} was a dud, try again...`, _err)
             })
 
+        console.log('RECEIVED BODY', body.length, innerPath)
+
         // _resolve(fileData)
 
         /* Validate results. */
@@ -67,9 +71,13 @@ const _handleRequestQueue = async function (_zeroEvent, _peer) {
 
         /* Emit message. */
         _zeroEvent.emit('response', requestId, data)
+        console.log('EMITTED RESPONSE FOR ', requestId);
+
+        /* Set busy flag. */
+        isBusy = false
 
         /* Handle request queue. */
-        _handleRequestQueue(_zeroEvent, peerMgr[conn.address])
+        _handleRequestQueue(_zeroEvent, _peer)
     }
 }
 
@@ -94,6 +102,7 @@ const _requestFile = async function (_zeroEvent, _peer, _requestId, _dest, _inne
     const innerPath = _innerPath
 
     /* Search for available (READY) connections. */
+    // NOTE Randomize this to allow for parallel peer requests.
     for (let address in peerMgr) {
         /* Set peer. */
         peer = peerMgr[address]
@@ -230,10 +239,11 @@ const _handler = async function (_zeroEvent, _requestId, _data) {
         console.log(`Requesting ${innerPath} for ${dest} via ${filtered[0]}`);
 
         // body = await wrapped(_zeroEvent, filtered[0], dest, innerPath)
-        body = await _requestFile(_zeroEvent, filtered[0], _requestId, dest, innerPath)
-            .catch((_err) => {
-                console.error(`Oops! Looks like ${dest} was a dud, try again...`, _err)
-            })
+        // body = await _requestFile(_zeroEvent, filtered[0], _requestId, dest, innerPath)
+        _requestFile(_zeroEvent, filtered[0], _requestId, dest, innerPath)
+        // .catch((_err) => {
+        //     console.error(`Oops! Looks like ${dest} was a dud, try again...`, _err)
+        // })
 
         // /* Validate results. */
         // if (filtered && filtered.length > 0 && body) {
